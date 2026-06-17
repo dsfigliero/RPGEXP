@@ -1,0 +1,27 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow);
+}
+
+.auth-card h1 {
+  font-size: 1.4rem;
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+
+.text-center { text-align: center; }
+
+.w-full { width: 100%; }

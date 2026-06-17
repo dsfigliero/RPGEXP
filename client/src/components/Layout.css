@@ -1,0 +1,97 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  transform: translateX(-220px);
+  transition: transform 0.25s ease;
+  z-index: 100;
+}
+
+.layout.sidebar-open .sidebar {
+  transform: translateX(0);
+}
+
+.layout.sidebar-open .main-content {
+  margin-left: 220px;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-toggle {
+  background: none;
+  color: var(--text-muted);
+  padding: 0.1rem 0.4rem;
+  font-size: 0.9rem;
+}
+.sidebar-toggle:hover { color: var(--text); }
+
+.sidebar-nav {
+  flex: 1;
+  padding: 0.75rem 0;
+  overflow-y: auto;
+}
+
+.nav-section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 0.4rem 1rem 0.2rem;
+}
+
+.sidebar-nav a {
+  display: block;
+  padding: 0.55rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  border-radius: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.sidebar-nav a:hover { background: var(--surface2); color: var(--text); }
+.sidebar-nav a.active { background: rgba(124,106,247,0.15); color: var(--primary); font-weight: 500; }
+
+.sidebar-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.main-content {
+  flex: 1;
+  transition: margin-left 0.25s ease;
+  min-width: 0;
+}
+
+.sidebar-open-btn {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 99;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.7rem;
+  font-size: 1.1rem;
+  border-radius: var(--radius);
+}
+.sidebar-open-btn:hover { background: var(--surface2); }
