@@ -1,32 +1,33 @@
 import { useEffect, useState } from 'react'
-import api from '../api'
+import { Link } from 'react-router-dom'
+import api from '../../api'
 
-export default function Characters() {
-  const [characters, setCharacters] = useState([])
+export default function AdminCampaigns() {
+  const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null) // null | { id?, name, class, level }
+  const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
-    const { data } = await api.get('/characters')
-    setCharacters(data)
+    const { data } = await api.get('/campaigns')
+    setCampaigns(data)
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
-  function openCreate() { setModal({ name: '', class: '', level: 1 }); setError('') }
-  function openEdit(c) { setModal({ id: c.id, name: c.name, class: c.class, level: c.level }); setError('') }
+  function openCreate() { setModal({ name: '', description: '', is_public: 0 }); setError('') }
+  function openEdit(c) { setModal({ id: c.id, name: c.name, description: c.description, is_public: c.is_public }); setError('') }
 
   async function save() {
     if (!modal.name.trim()) return setError('Nome obrigatório')
     setSaving(true)
     try {
       if (modal.id)
-        await api.put(`/characters/${modal.id}`, { name: modal.name, class: modal.class, level: modal.level })
+        await api.put(`/campaigns/${modal.id}`, { name: modal.name, description: modal.description, is_public: modal.is_public })
       else
-        await api.post('/characters', { name: modal.name, class: modal.class, level: modal.level })
+        await api.post('/campaigns', { name: modal.name, description: modal.description, is_public: modal.is_public })
       setModal(null)
       load()
     } catch (err) {
@@ -37,8 +38,8 @@ export default function Characters() {
   }
 
   async function del(id) {
-    if (!confirm('Excluir personagem?')) return
-    await api.delete(`/characters/${id}`)
+    if (!confirm('Excluir campanha?')) return
+    await api.delete(`/campaigns/${id}`)
     load()
   }
 
@@ -47,33 +48,39 @@ export default function Characters() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Meus Personagens</h1>
-        <button className="btn-primary" onClick={openCreate}>+ Adicionar</button>
+        <h1>Campanhas</h1>
+        <button className="btn-primary" onClick={openCreate}>+ Nova Campanha</button>
       </div>
 
-      {characters.length === 0
-        ? <div className="card text-muted text-sm">Nenhum personagem cadastrado ainda.</div>
+      {campaigns.length === 0
+        ? <div className="card text-muted text-sm">Nenhuma campanha criada.</div>
         : (
           <div className="card" style={{ padding: 0 }}>
             <table>
               <thead>
                 <tr>
                   <th>Nome</th>
-                  <th>Classe</th>
-                  <th>Nível</th>
-                  <th>XP Total</th>
+                  <th>Descrição</th>
+                  <th>Visibilidade</th>
+                  <th>Sessões</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {characters.map(c => (
+                {campaigns.map(c => (
                   <tr key={c.id}>
                     <td>{c.name}</td>
-                    <td className="text-muted">{c.class || '—'}</td>
-                    <td><span className="badge badge-purple">Nível {c.level}</span></td>
-                    <td>{c.total_xp.toLocaleString('pt-BR')} XP</td>
+                    <td className="text-muted">{c.description || '—'}</td>
+                    <td>
+                      {c.is_public
+                        ? <span className="badge badge-green">Pública</span>
+                        : <span className="badge badge-yellow">Privada</span>
+                      }
+                    </td>
+                    <td><span className="badge badge-purple">{c.session_count}</span></td>
                     <td>
                       <div className="flex gap-2">
+                        <Link to={`/admin/campaigns/${c.id}`} className="btn-ghost btn-sm" style={{ display: 'inline-block' }}>Gerenciar →</Link>
                         <button className="btn-ghost btn-sm" onClick={() => openEdit(c)}>Editar</button>
                         <button className="btn-danger btn-sm" onClick={() => del(c.id)}>Excluir</button>
                       </div>
@@ -89,7 +96,7 @@ export default function Characters() {
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setModal(null)}>
           <div className="modal">
             <div className="modal-header">
-              <h2>{modal.id ? 'Editar' : 'Adicionar'} Personagem</h2>
+              <h2>{modal.id ? 'Editar' : 'Nova'} Campanha</h2>
               <button className="btn-ghost btn-sm" onClick={() => setModal(null)}>✕</button>
             </div>
             <div className="form-group">
@@ -97,12 +104,15 @@ export default function Characters() {
               <input value={modal.name} onChange={e => setModal(m => ({ ...m, name: e.target.value }))} autoFocus />
             </div>
             <div className="form-group">
-              <label>Classe</label>
-              <input value={modal.class} onChange={e => setModal(m => ({ ...m, class: e.target.value }))} placeholder="Ex: Guerreiro, Mago..." />
+              <label>Descrição</label>
+              <textarea rows={3} value={modal.description} onChange={e => setModal(m => ({ ...m, description: e.target.value }))} style={{ resize: 'vertical' }} />
             </div>
             <div className="form-group">
-              <label>Nível</label>
-              <input type="number" min={1} value={modal.level} onChange={e => setModal(m => ({ ...m, level: +e.target.value }))} />
+              <label>Visibilidade</label>
+              <select value={modal.is_public} onChange={e => setModal(m => ({ ...m, is_public: Number(e.target.value) }))}>
+                <option value={0}>Privada</option>
+                <option value={1}>Pública</option>
+              </select>
             </div>
             {error && <p className="error-msg">{error}</p>}
             <div className="modal-footer">

@@ -8,17 +8,17 @@ router.get('/', authenticate, (req, res) => {
 });
 
 router.post('/', authenticate, (req, res) => {
-  const { name, level = 1 } = req.body;
+  const { name, class: charClass = '', level = 1 } = req.body;
   if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
-  const result = prepare('INSERT INTO characters (name, level, user_id) VALUES (?, ?, ?)').run(name, level, req.user.id);
+  const result = prepare('INSERT INTO characters (name, class, level, user_id) VALUES (?, ?, ?, ?)').run(name, charClass, level, req.user.id);
   res.json(prepare('SELECT * FROM characters WHERE id = ?').get(result.lastInsertRowid));
 });
 
 router.put('/:id', authenticate, (req, res) => {
-  const { name, level } = req.body;
+  const { name, class: charClass, level } = req.body;
   const char = prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
-  prepare('UPDATE characters SET name = ?, level = ? WHERE id = ?').run(name ?? char.name, level ?? char.level, char.id);
+  prepare('UPDATE characters SET name = ?, class = ?, level = ? WHERE id = ?').run(name ?? char.name, charClass ?? char.class, level ?? char.level, char.id);
   res.json(prepare('SELECT * FROM characters WHERE id = ?').get(char.id));
 });
 

@@ -95,3 +95,66 @@
   border-radius: var(--radius);
 }
 .sidebar-open-btn:hover { background: var(--surface2); }
+
+/* Backdrop overlay (mobile only) */
+.sidebar-backdrop {
+  display: none;
+}
+
+/* Mobile top bar (hidden on desktop) */
+.mobile-topbar {
+  display: none;
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .mobile-topbar {
+    display: flex;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3.25rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1rem;
+    z-index: 97;
+  }
+
+  .mobile-hamburger {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 1.25rem;
+    padding: 0.2rem 0.4rem;
+    line-height: 1;
+  }
+
+  .mobile-topbar-title {
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .main-content {
+    padding-top: 3.25rem;
+  }
+
+  /* Sidebar overlays on mobile — do not push content */
+  .layout.sidebar-open .main-content {
+    margin-left: 0;
+  }
+
+  /* Backdrop */
+  .layout.sidebar-open .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 99;
+  }
+
+  /* Hide the floating desktop open button on mobile (topbar handles it) */
+  .sidebar-open-btn {
+    display: none;
+  }
+}

@@ -72,15 +72,21 @@ export default function AdminSessionDetail() {
   return (
     <div className="page">
       <div className="mb-3">
-        <Link to="/admin/sessions" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>← Sessões</Link>
+        <Link
+          to={session.campaign_id ? `/admin/campaigns/${session.campaign_id}` : '/admin/sessions'}
+          style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
+        >
+          ← {session.campaign_name || 'Sessões'}
+        </Link>
       </div>
 
       <div className="page-header">
         <div>
           <h1>{session.name}</h1>
+          {session.campaign_name && <p className="text-muted text-sm mt-1">Campanha: {session.campaign_name}</p>}
           {session.description && <p className="text-muted text-sm mt-1">{session.description}</p>}
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
           <span className={`badge ${session.is_finalized ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: '0.9rem', padding: '0.35rem 0.9rem' }}>
             {session.is_finalized ? 'Finalizada' : 'Em andamento'}
           </span>

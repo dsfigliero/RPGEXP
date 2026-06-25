@@ -26,6 +26,7 @@ export default function MySessions() {
               <thead>
                 <tr>
                   <th>Sessão</th>
+                  <th>Campanha</th>
                   <th>Data</th>
                   <th>Status</th>
                   <th></th>
@@ -35,6 +36,7 @@ export default function MySessions() {
                 {sessions.map(s => (
                   <tr key={s.id}>
                     <td>{s.name}</td>
+                    <td className="text-muted">{s.campaign_name || '—'}</td>
                     <td>{new Date(s.date).toLocaleDateString('pt-BR')}</td>
                     <td>
                       <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>

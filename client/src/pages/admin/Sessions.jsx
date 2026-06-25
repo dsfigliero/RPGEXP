@@ -4,26 +4,28 @@ import api from '../../api'
 
 export default function AdminSessions() {
   const [sessions, setSessions] = useState([])
+  const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
-    const { data } = await api.get('/sessions')
-    setSessions(data)
+    const [s, c] = await Promise.all([api.get('/sessions'), api.get('/campaigns')])
+    setSessions(s.data)
+    setCampaigns(c.data)
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
-  function openCreate() { setModal({ name: '', description: '' }); setError('') }
+  function openCreate() { setModal({ name: '', description: '', campaign_id: '' }); setError('') }
 
   async function save() {
     if (!modal.name.trim()) return setError('Nome obrigatório')
     setSaving(true)
     try {
-      await api.post('/sessions', modal)
+      await api.post('/sessions', { ...modal, campaign_id: modal.campaign_id || null })
       setModal(null)
       load()
     } catch (err) {
@@ -50,6 +52,7 @@ export default function AdminSessions() {
               <thead>
                 <tr>
                   <th>Nome</th>
+                  <th>Campanha</th>
                   <th>Data</th>
                   <th>Status</th>
                   <th></th>
@@ -59,6 +62,7 @@ export default function AdminSessions() {
                 {sessions.map(s => (
                   <tr key={s.id}>
                     <td>{s.name}</td>
+                    <td className="text-muted">{s.campaign_name || '—'}</td>
                     <td>{new Date(s.date).toLocaleDateString('pt-BR')}</td>
                     <td>
                       <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>
@@ -91,6 +95,13 @@ export default function AdminSessions() {
             <div className="form-group">
               <label>Descrição</label>
               <textarea rows={3} value={modal.description} onChange={e => setModal(m => ({ ...m, description: e.target.value }))} style={{ resize: 'vertical' }} />
+            </div>
+            <div className="form-group">
+              <label>Campanha</label>
+              <select value={modal.campaign_id} onChange={e => setModal(m => ({ ...m, campaign_id: e.target.value }))}>
+                <option value="">— Sem campanha —</option>
+                {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
             </div>
             {error && <p className="error-msg">{error}</p>}
             <div className="modal-footer">

@@ -7,15 +7,18 @@ export default function Dashboard() {
   const { user } = useAuth()
   const [characters, setCharacters] = useState([])
   const [sessions, setSessions] = useState([])
+  const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       api.get('/characters'),
-      api.get('/sessions')
-    ]).then(([c, s]) => {
+      api.get('/sessions'),
+      api.get('/campaigns')
+    ]).then(([c, s, cam]) => {
       setCharacters(c.data)
       setSessions(s.data)
+      setCampaigns(cam.data)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -42,6 +45,10 @@ export default function Dashboard() {
           <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--primary)' }}>
             {characters.reduce((s, c) => s + c.total_xp, 0).toLocaleString('pt-BR')}
           </div>
+        </div>
+        <div className="card">
+          <div className="text-muted text-sm mb-1">Campanhas</div>
+          <div style={{ fontSize: '2rem', fontWeight: 700 }}>{campaigns.length}</div>
         </div>
       </div>
 

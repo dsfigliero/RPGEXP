@@ -33,6 +33,7 @@ export default function SessionDetail() {
       <div className="page-header">
         <div>
           <h1>{session.name}</h1>
+          {session.campaign_name && <p className="text-muted text-sm mt-1">Campanha: {session.campaign_name}</p>}
           {session.description && <p className="text-muted text-sm mt-1">{session.description}</p>}
         </div>
         <span className={`badge ${session.is_finalized ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: '0.9rem', padding: '0.35rem 0.9rem' }}>

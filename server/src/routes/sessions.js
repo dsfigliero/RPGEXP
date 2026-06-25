@@ -3,6 +3,18 @@ const router = express.Router();
 const { prepare, transaction } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 
+function isMestreOfCampaign(userId, campaignId) {
+  if (!campaignId) return false;
+  const c = prepare('SELECT created_by FROM campaigns WHERE id = ?').get(campaignId);
+  return c && c.created_by === userId;
+}
+
+function canManageSession(user, sessionId) {
+  if (user.is_admin) return true;
+  const s = prepare('SELECT campaign_id FROM sessions WHERE id = ?').get(sessionId);
+  return s && isMestreOfCampaign(user.id, s.campaign_id);
+}
+
 function calculateXP(sessionId) {
   const items = prepare(`
     SELECT scei.quantity, ei.xp_value, scei.character_id
@@ -33,10 +45,15 @@ function calculateXP(sessionId) {
 
 router.get('/', authenticate, (req, res) => {
   if (req.user.is_admin) {
-    return res.json(prepare('SELECT * FROM sessions ORDER BY date DESC').all());
+    return res.json(prepare(`
+      SELECT s.*, cam.name as campaign_name FROM sessions s
+      LEFT JOIN campaigns cam ON cam.id = s.campaign_id
+      ORDER BY s.date DESC
+    `).all());
   }
   res.json(prepare(`
-    SELECT DISTINCT s.* FROM sessions s
+    SELECT DISTINCT s.*, cam.name as campaign_name FROM sessions s
+    LEFT JOIN campaigns cam ON cam.id = s.campaign_id
     JOIN session_participants sp ON sp.session_id = s.id
     JOIN characters c ON c.id = sp.character_id
     WHERE c.user_id = ?
@@ -53,7 +70,7 @@ router.get('/admin/all-characters', authenticate, requireAdmin, (req, res) => {
 });
 
 router.get('/:id', authenticate, (req, res) => {
-  const session = prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+  const session = prepare('SELECT s.*, cam.name as campaign_name FROM sessions s LEFT JOIN campaigns cam ON cam.id = s.campaign_id WHERE s.id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
 
   const participants = prepare(`
@@ -80,34 +97,44 @@ router.get('/:id', authenticate, (req, res) => {
   res.json({ ...session, participants, actions, xp_records: xpRecords });
 });
 
-router.post('/', authenticate, requireAdmin, (req, res) => {
-  const { name, description = '', date } = req.body;
+router.post('/', authenticate, (req, res) => {
+  const { name, description = '', date, campaign_id } = req.body;
   if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
-  const result = prepare('INSERT INTO sessions (name, description, date) VALUES (?, ?, ?)').run(name, description, date || new Date().toISOString());
-  res.json(prepare('SELECT * FROM sessions WHERE id = ?').get(result.lastInsertRowid));
+  if (!req.user.is_admin && !isMestreOfCampaign(req.user.id, campaign_id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const result = prepare('INSERT INTO sessions (name, description, date, campaign_id) VALUES (?, ?, ?, ?)').run(name, description, date || new Date().toISOString(), campaign_id || null);
+  res.json(prepare('SELECT s.*, cam.name as campaign_name FROM sessions s LEFT JOIN campaigns cam ON cam.id = s.campaign_id WHERE s.id = ?').get(result.lastInsertRowid));
 });
 
-router.put('/:id', authenticate, requireAdmin, (req, res) => {
+router.put('/:id', authenticate, (req, res) => {
   const { name, description, date } = req.body;
   const session = prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
   prepare('UPDATE sessions SET name = ?, description = ?, date = ? WHERE id = ?')
     .run(name ?? session.name, description ?? session.description, date ?? session.date, session.id);
   res.json(prepare('SELECT * FROM sessions WHERE id = ?').get(session.id));
 });
 
-router.post('/:id/participants', authenticate, requireAdmin, (req, res) => {
+router.post('/:id/participants', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
   const { character_id } = req.body;
   prepare('INSERT OR IGNORE INTO session_participants (session_id, character_id) VALUES (?, ?)').run(req.params.id, character_id);
   res.json({ ok: true });
 });
 
-router.delete('/:id/participants/:characterId', authenticate, requireAdmin, (req, res) => {
+router.delete('/:id/participants/:characterId', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
   prepare('DELETE FROM session_participants WHERE session_id = ? AND character_id = ?').run(req.params.id, req.params.characterId);
   res.json({ ok: true });
 });
 
-router.post('/:id/actions', authenticate, requireAdmin, (req, res) => {
+router.post('/:id/actions', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
   const { character_id, evaluation_item_id, quantity = 1 } = req.body;
   const existing = prepare(`
     SELECT quantity FROM session_character_evaluation_items
@@ -128,14 +155,18 @@ router.post('/:id/actions', authenticate, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-router.delete('/:id/actions', authenticate, requireAdmin, (req, res) => {
+router.delete('/:id/actions', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
   const { character_id, evaluation_item_id } = req.body;
   prepare('DELETE FROM session_character_evaluation_items WHERE session_id = ? AND character_id = ? AND evaluation_item_id = ?')
     .run(req.params.id, character_id, evaluation_item_id);
   res.json({ ok: true });
 });
 
-router.post('/:id/finalize', authenticate, requireAdmin, (req, res) => {
+router.post('/:id/finalize', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
   const session = prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
   if (session.is_finalized) return res.status(400).json({ error: 'Sessão já finalizada' });

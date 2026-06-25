@@ -32,9 +32,28 @@ async function initDb() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      is_public INTEGER DEFAULT 0,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS campaign_join_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(campaign_id, user_id)
+    );
+
     CREATE TABLE IF NOT EXISTS characters (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      class TEXT DEFAULT '',
       level INTEGER DEFAULT 1,
       total_xp INTEGER DEFAULT 0,
       user_id INTEGER NOT NULL,
@@ -53,7 +72,8 @@ async function initDb() {
       name TEXT NOT NULL,
       description TEXT DEFAULT '',
       date TEXT DEFAULT (datetime('now')),
-      is_finalized INTEGER DEFAULT 0
+      is_finalized INTEGER DEFAULT 0,
+      campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS session_participants (
@@ -85,6 +105,11 @@ async function initDb() {
       FOREIGN KEY (character_id) REFERENCES characters(id)
     );
   `);
+
+  try { db.run(`ALTER TABLE characters ADD COLUMN class TEXT DEFAULT ''`); } catch(e) {}
+  try { db.run(`ALTER TABLE sessions ADD COLUMN campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL`); } catch(e) {}
+  try { db.run(`ALTER TABLE campaigns ADD COLUMN is_public INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE campaigns ADD COLUMN created_by INTEGER REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
 
   saveDb();
   return db;

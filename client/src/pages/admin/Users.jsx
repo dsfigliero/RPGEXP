@@ -38,7 +38,7 @@ export default function Users() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {users.map(u => (
           <div key={u.id} className="card">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
                 <div className="flex items-center gap-2">
                   <strong>{u.email}</strong>
