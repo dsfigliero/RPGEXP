@@ -53,6 +53,7 @@ export default function GmDashboard() {
   const [session, setSession] = useState(null)
   const [npcs, setNpcs] = useState([])
   const [evalItems, setEvalItems] = useState([])
+  const [libraryMonsters, setLibraryMonsters] = useState([])
   const [loading, setLoading] = useState(true)
   const [fields, setFields] = useState({ hp: true, ca: true, iniciativa: true, nivel: true, classe: true })
   const [sortByInit, setSortByInit] = useState(false)
@@ -72,14 +73,16 @@ export default function GmDashboard() {
   const [error, setError] = useState('')
 
   async function load() {
-    const [sessRes, npcsRes, itemsRes] = await Promise.all([
+    const [sessRes, npcsRes, itemsRes, libRes] = await Promise.all([
       api.get(`/sessions/${sessionId}`),
       api.get(`/sessions/${sessionId}/npcs`),
       api.get('/evaluation-items'),
+      api.get('/monsters').catch(() => ({ data: [] })),
     ])
     setSession(sessRes.data)
     setNpcs(npcsRes.data)
     setEvalItems(itemsRes.data)
+    setLibraryMonsters(libRes.data)
     setLoading(false)
     if (showLog) loadCombatLog();
   }
@@ -96,13 +99,13 @@ export default function GmDashboard() {
   }
 
   function openNpcCreate() {
-    setNpcModal({ name: '', hp: 0, max_hp: 0, ac: 10, initiative: 0, notes: '', attacks: [], jsonInput: '', jsonError: '' })
+    setNpcModal({ name: '', hp: 0, max_hp: 0, ac: 10, initiative: 0, notes: '', attacks: [], monster_data: '', jsonInput: '', jsonError: '' })
     setError('')
   }
 
   function openNpcEdit(npc) {
     const parsedAttacks = (() => { try { return JSON.parse(npc.attacks || '[]'); } catch(e) { return []; } })();
-    setNpcModal({ id: npc.id, name: npc.name, hp: npc.hp, max_hp: npc.max_hp, ac: npc.ac, initiative: npc.initiative, notes: npc.notes, attacks: parsedAttacks, jsonInput: '', jsonError: '' })
+    setNpcModal({ id: npc.id, name: npc.name, hp: npc.hp, max_hp: npc.max_hp, ac: npc.ac, initiative: npc.initiative, notes: npc.notes, attacks: parsedAttacks, monster_data: npc.monster_data || '', jsonInput: '', jsonError: '' })
     setError('')
   }
 
@@ -473,6 +476,32 @@ export default function GmDashboard() {
               <h2>{npcModal.id ? 'Editar NPC' : 'Novo NPC'}</h2>
               <button className="btn-ghost btn-sm" onClick={() => setNpcModal(null)}>✕</button>
             </div>
+            {libraryMonsters.length > 0 && (
+              <div className="form-group">
+                <label>Carregar da Biblioteca</label>
+                <select defaultValue="" onChange={e => {
+                  if (!e.target.value) return
+                  const m = libraryMonsters.find(x => x.id === +e.target.value)
+                  if (!m) return
+                  let attacks = []; try { attacks = JSON.parse(m.attacks || '[]') } catch(err) {}
+                  setNpcModal(prev => ({
+                    ...prev,
+                    name: m.name,
+                    hp: m.max_hp,
+                    max_hp: m.max_hp,
+                    ac: m.ac,
+                    initiative: m.initiative,
+                    notes: m.notes || '',
+                    attacks,
+                    monster_data: m.monster_data || '',
+                  }))
+                  e.target.value = ''
+                }}>
+                  <option value="">— Selecione da biblioteca —</option>
+                  {libraryMonsters.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="form-group">
               <label>Nome</label>
               <input value={npcModal.name} onChange={e => setNpcModal(m => ({ ...m, name: e.target.value }))} autoFocus />
@@ -538,6 +567,20 @@ export default function GmDashboard() {
             {error && <p className="error-msg">{error}</p>}
             <div className="modal-footer">
               <button className="btn-ghost" onClick={() => setNpcModal(null)}>Cancelar</button>
+              <button className="btn-ghost btn-sm" onClick={async () => {
+                await api.post('/monsters', {
+                  name: npcModal.name,
+                  hp: npcModal.max_hp,
+                  max_hp: npcModal.max_hp,
+                  ac: npcModal.ac,
+                  initiative: npcModal.initiative,
+                  notes: npcModal.notes,
+                  attacks: JSON.stringify(npcModal.attacks || []),
+                  monster_data: npcModal.monster_data || null,
+                })
+                alert(`"${npcModal.name}" salvo na biblioteca!`)
+                load()
+              }} disabled={!npcModal.name}>Salvar na Biblioteca</button>
               <button className="btn-primary" onClick={saveNpc} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>

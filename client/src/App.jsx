@@ -19,6 +19,9 @@ import AdminCampaigns from './pages/admin/Campaigns'
 import AdminCampaignDetail from './pages/admin/CampaignDetail'
 import Users from './pages/admin/Users'
 import CharacterLogs from './pages/admin/CharacterLogs'
+import Classes from './pages/admin/Classes'
+import Feats from './pages/admin/Feats'
+import MonsterLibrary from './pages/MonsterLibrary'
 
 function RequireAuth({ children }) {
   const { user } = useAuth()
@@ -56,6 +59,9 @@ export default function App() {
             <Route path="admin/campaigns/:id" element={<RequireAdmin><AdminCampaignDetail /></RequireAdmin>} />
             <Route path="admin/users" element={<RequireAdmin><Users /></RequireAdmin>} />
             <Route path="admin/character-logs" element={<RequireAdmin><CharacterLogs /></RequireAdmin>} />
+            <Route path="monsters" element={<MonsterLibrary />} />
+            <Route path="admin/classes" element={<RequireAdmin><Classes /></RequireAdmin>} />
+            <Route path="admin/feats" element={<RequireAdmin><Feats /></RequireAdmin>} />
           </Route>
         </Routes>
       </BrowserRouter>

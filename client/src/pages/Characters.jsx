@@ -4,21 +4,26 @@ import api from '../api'
 
 export default function Characters() {
   const [characters, setCharacters] = useState([])
+  const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
-    const { data } = await api.get('/characters')
-    setCharacters(data)
+    const [charsRes, classesRes] = await Promise.all([
+      api.get('/characters'),
+      api.get('/classes').catch(() => ({ data: [] })),
+    ])
+    setCharacters(charsRes.data)
+    setClasses(classesRes.data)
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
   function openCreate() {
-    setModal({ name: '', class: '', level: 1, race: '', alignment: '', speed: 30,
+    setModal({ name: '', class: '', class_id: null, level: 1, race: '', alignment: '', speed: 30,
       hp: 0, max_hp: 0, ac: 10, initiative: 0,
       str_score: 10, dex_score: 10, con_score: 10, int_score: 10, wis_score: 10, cha_score: 10,
       bab: 0, cmb: 0, cmd: 10, spell_resistance: 0,
@@ -27,7 +32,7 @@ export default function Characters() {
   }
 
   function openEdit(c) {
-    setModal({ id: c.id, name: c.name, class: c.class, level: c.level, race: c.race || '', alignment: c.alignment || '',
+    setModal({ id: c.id, name: c.name, class: c.class, class_id: c.class_id || null, level: c.level, race: c.race || '', alignment: c.alignment || '',
       speed: c.speed || 30, hp: c.hp, max_hp: c.max_hp, ac: c.ac, initiative: c.initiative || 0,
       str_score: c.str_score || 10, dex_score: c.dex_score || 10, con_score: c.con_score || 10,
       int_score: c.int_score || 10, wis_score: c.wis_score || 10, cha_score: c.cha_score || 10,
@@ -116,7 +121,18 @@ export default function Characters() {
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Informações Gerais</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
               <div className="form-group"><label>Nome</label><input value={modal.name} onChange={e => setModal(m => ({ ...m, name: e.target.value }))} autoFocus /></div>
-              <div className="form-group"><label>Classe</label><input value={modal.class} onChange={e => setModal(m => ({ ...m, class: e.target.value }))} /></div>
+              <div className="form-group">
+                <label>Classe</label>
+                <select value={modal.class_id || ''} onChange={e => {
+                  const cls = classes.find(c => c.id === +e.target.value)
+                  setModal(m => ({ ...m, class_id: e.target.value ? +e.target.value : null, class: cls ? cls.name : '' }))
+                }}>
+                  <option value="">Selecione uma classe...</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}{c.uses_magic ? ' ✨' : ''}</option>
+                  ))}
+                </select>
+              </div>
               <div className="form-group"><label>Raça</label><input value={modal.race} onChange={e => setModal(m => ({ ...m, race: e.target.value }))} /></div>
               <div className="form-group"><label>Nível</label><input type="number" min={1} value={modal.level} onChange={e => setModal(m => ({ ...m, level: +e.target.value }))} /></div>
               <div className="form-group"><label>Alinhamento</label>

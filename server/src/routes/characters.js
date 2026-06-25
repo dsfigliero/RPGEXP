@@ -53,24 +53,32 @@ router.get('/:id/sheet', authenticate, (req, res) => {
   const isMestre = isMestreOfCharacter(req.user.id, req.params.id);
   if (!isOwner && !isMestre && !req.user.is_admin)
     return res.status(403).json({ error: 'Acesso negado' });
-  res.json(char);
+  const charClass = char.class_id ? prepare('SELECT * FROM character_classes WHERE id = ?').get(char.class_id) : null;
+  const charFeats = prepare('SELECT f.* FROM feats f JOIN character_feats cf ON cf.feat_id = f.id WHERE cf.character_id = ?').all(char.id);
+  res.json({ ...char, class_info: charClass, feats: charFeats });
 });
 
 router.post('/', authenticate, (req, res) => {
   const {
-    name, class: charClass = '', level = 1, hp = 0, max_hp = 0, ac = 10, initiative = 0,
+    name, class: charClass = '', class_id = null, level = 1, hp = 0, max_hp = 0, ac = 10, initiative = 0,
     str_score = 10, dex_score = 10, con_score = 10, int_score = 10, wis_score = 10, cha_score = 10,
     race = '', alignment = '', speed = 30, bab = 0, cmb = 0, cmd = 10,
     spell_resistance = 0, fortitude = 0, will_save = 0, reflex = 0, char_notes = ''
   } = req.body;
   if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+  // If class_id given, resolve class name for backward compat
+  let resolvedClass = charClass;
+  if (class_id) {
+    const cls = prepare('SELECT name FROM character_classes WHERE id = ?').get(class_id);
+    if (cls) resolvedClass = cls.name;
+  }
   const result = prepare(`
-    INSERT INTO characters (name, class, level, hp, max_hp, ac, initiative,
+    INSERT INTO characters (name, class, class_id, level, hp, max_hp, ac, initiative,
       str_score, dex_score, con_score, int_score, wis_score, cha_score,
       race, alignment, speed, bab, cmb, cmd, spell_resistance,
       fortitude, will_save, reflex, char_notes, user_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  `).run(name, charClass, level, hp, max_hp, ac, initiative,
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(name, resolvedClass, class_id || null, level, hp, max_hp, ac, initiative,
     str_score, dex_score, con_score, int_score, wis_score, cha_score,
     race, alignment, speed, bab, cmb, cmd, spell_resistance,
     fortitude, will_save, reflex, char_notes, req.user.id);
@@ -86,15 +94,24 @@ router.put('/:id', authenticate, (req, res) => {
     return res.status(403).json({ error: 'Acesso negado' });
 
   const {
-    name, class: charClass, level, hp, max_hp, ac, initiative,
+    name, class: charClass, class_id, level, hp, max_hp, ac, initiative,
     str_score, dex_score, con_score, int_score, wis_score, cha_score,
     race, alignment, speed, bab, cmb, cmd, spell_resistance,
     fortitude, will_save, reflex, char_notes
   } = req.body;
 
+  // Resolve class name from class_id if provided
+  let resolvedClass = charClass ?? char.class;
+  const resolvedClassId = class_id !== undefined ? (class_id || null) : char.class_id;
+  if (class_id !== undefined && class_id) {
+    const cls = prepare('SELECT name FROM character_classes WHERE id = ?').get(class_id);
+    if (cls) resolvedClass = cls.name;
+  }
+
   const updated = {
     name: name ?? char.name,
-    class: charClass ?? char.class,
+    class: resolvedClass,
+    class_id: resolvedClassId,
     level: level ?? char.level,
     hp: hp ?? char.hp,
     max_hp: max_hp ?? char.max_hp,
@@ -120,13 +137,13 @@ router.put('/:id', authenticate, (req, res) => {
   };
 
   prepare(`
-    UPDATE characters SET name=?, class=?, level=?, hp=?, max_hp=?, ac=?, initiative=?,
+    UPDATE characters SET name=?, class=?, class_id=?, level=?, hp=?, max_hp=?, ac=?, initiative=?,
       str_score=?, dex_score=?, con_score=?, int_score=?, wis_score=?, cha_score=?,
       race=?, alignment=?, speed=?, bab=?, cmb=?, cmd=?, spell_resistance=?,
       fortitude=?, will_save=?, reflex=?, char_notes=?
     WHERE id=?
   `).run(
-    updated.name, updated.class, updated.level, updated.hp, updated.max_hp, updated.ac, updated.initiative,
+    updated.name, updated.class, updated.class_id, updated.level, updated.hp, updated.max_hp, updated.ac, updated.initiative,
     updated.str_score, updated.dex_score, updated.con_score, updated.int_score, updated.wis_score, updated.cha_score,
     updated.race, updated.alignment, updated.speed, updated.bab, updated.cmb, updated.cmd, updated.spell_resistance,
     updated.fortitude, updated.will_save, updated.reflex, updated.char_notes, char.id
@@ -193,6 +210,36 @@ router.get('/:id/change-log', authenticate, requireAdmin, (req, res) => {
     WHERE ccl.character_id = ?
     ORDER BY ccl.created_at DESC
   `).all(req.params.id));
+});
+
+// GET /:id/feats
+router.get('/:id/feats', authenticate, (req, res) => {
+  res.json(prepare(`
+    SELECT f.* FROM feats f
+    JOIN character_feats cf ON cf.feat_id = f.id
+    WHERE cf.character_id = ?
+    ORDER BY f.name
+  `).all(req.params.id));
+});
+
+// POST /:id/feats
+router.post('/:id/feats', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const { feat_id } = req.body;
+  if (!feat_id) return res.status(400).json({ error: 'feat_id obrigatório' });
+  prepare('INSERT OR IGNORE INTO character_feats (character_id, feat_id) VALUES (?, ?)').run(req.params.id, feat_id);
+  res.json({ ok: true });
+});
+
+// DELETE /:id/feats/:featId
+router.delete('/:id/feats/:featId', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  prepare('DELETE FROM character_feats WHERE character_id = ? AND feat_id = ?').run(req.params.id, req.params.featId);
+  res.json({ ok: true });
 });
 
 module.exports = router;

@@ -37,6 +37,7 @@ export default function Layout() {
           <NavLink to="/characters" onClick={navClick}>🧙 Personagens</NavLink>
           <NavLink to="/sessions" onClick={navClick}>📜 Minhas Sessões</NavLink>
           <NavLink to="/campaigns" onClick={navClick}>🗺 Campanhas</NavLink>
+          <NavLink to="/monsters" onClick={navClick}>👹 Monstros</NavLink>
           {user?.is_admin && <>
             <div className="nav-section-label" style={{ marginTop: '1rem' }}>Admin</div>
             <NavLink to="/admin/sessions" onClick={navClick}>🗂 Sessões</NavLink>
@@ -44,6 +45,8 @@ export default function Layout() {
             <NavLink to="/admin/evaluation-items" onClick={navClick}>⭐ Itens de Avaliação</NavLink>
             <NavLink to="/admin/users" onClick={navClick}>👥 Usuários</NavLink>
             <NavLink to="/admin/character-logs" onClick={navClick}>📋 Log de Personagens</NavLink>
+            <NavLink to="/admin/classes" onClick={navClick}>🛡 Classes</NavLink>
+            <NavLink to="/admin/feats" onClick={navClick}>✨ Talentos</NavLink>
           </>}
         </nav>
         <div className="sidebar-footer">

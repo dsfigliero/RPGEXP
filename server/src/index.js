@@ -14,6 +14,9 @@ app.use('/api/evaluation-items', require('./routes/evaluationItems'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/classes', require('./routes/classes'));
+app.use('/api/feats', require('./routes/feats'));
+app.use('/api/monsters', require('./routes/monsters'));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '..', 'public')));

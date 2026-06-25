@@ -56,6 +56,9 @@ export default function CharacterPanel() {
   const [char, setChar] = useState(null)
   const [effects, setEffects] = useState([])
   const [xpHistory, setXpHistory] = useState([])
+  const [feats, setFeats] = useState([])
+  const [allFeats, setAllFeats] = useState([])
+  const [addingFeat, setAddingFeat] = useState(false)
   const [loading, setLoading] = useState(true)
   const [editModal, setEditModal] = useState(null)
   const [effectModal, setEffectModal] = useState(null)
@@ -67,14 +70,18 @@ export default function CharacterPanel() {
 
   async function load() {
     try {
-      const [charRes, effectsRes, xpRes] = await Promise.all([
+      const [charRes, effectsRes, xpRes, featsRes, allFeatsRes] = await Promise.all([
         api.get(`/characters/${id}/sheet`),
         api.get(`/characters/${id}/effects`).catch(() => ({ data: [] })),
         api.get(`/characters/${id}/xp-history`).catch(() => ({ data: [] })),
+        api.get(`/characters/${id}/feats`).catch(() => ({ data: [] })),
+        api.get('/feats').catch(() => ({ data: [] })),
       ])
       setChar(charRes.data)
       setEffects(effectsRes.data)
       setXpHistory(xpRes.data)
+      setFeats(featsRes.data)
+      setAllFeats(allFeatsRes.data)
     } finally {
       setLoading(false)
     }
@@ -200,6 +207,48 @@ export default function CharacterPanel() {
           </div>
         ))}
       </div>
+
+      {canEdit && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <strong>Talentos</strong>
+            <button className="btn-ghost btn-sm" onClick={() => setAddingFeat(true)}>+ Adicionar</button>
+          </div>
+          {feats.length === 0 && <p className="text-muted text-sm">Nenhum talento.</p>}
+          {feats.map(f => (
+            <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div>
+                <span style={{ fontWeight: 500 }}>{f.name}</span>
+                {f.description && <span className="text-muted text-sm" style={{ marginLeft: '0.5rem' }}>({f.description})</span>}
+              </div>
+              <button className="btn-ghost btn-sm" style={{ color: 'var(--danger)' }}
+                onClick={async () => {
+                  await api.delete(`/characters/${id}/feats/${f.id}`)
+                  setFeats(prev => prev.filter(x => x.id !== f.id))
+                }}>✕</button>
+            </div>
+          ))}
+          {addingFeat && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <select defaultValue="" id="feat-select" style={{ flex: 1 }}>
+                <option value="">Escolha um talento...</option>
+                {allFeats.filter(f => !feats.find(x => x.id === f.id)).map(f => (
+                  <option key={f.id} value={f.id}>{f.name}{f.description ? ` — ${f.description}` : ''}</option>
+                ))}
+              </select>
+              <button className="btn-primary btn-sm" onClick={async () => {
+                const sel = document.getElementById('feat-select')
+                if (!sel.value) return
+                await api.post(`/characters/${id}/feats`, { feat_id: +sel.value })
+                const { data } = await api.get(`/characters/${id}/feats`)
+                setFeats(data)
+                setAddingFeat(false)
+              }}>Adicionar</button>
+              <button className="btn-ghost btn-sm" onClick={() => setAddingFeat(false)}>Cancelar</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isOwner && (
         <div style={{ marginBottom: '1.5rem' }}>

@@ -177,6 +177,41 @@ async function initDb() {
       hp_after INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS character_classes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT DEFAULT '',
+      uses_magic INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS feats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS character_feats (
+      character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      feat_id INTEGER NOT NULL REFERENCES feats(id) ON DELETE CASCADE,
+      PRIMARY KEY (character_id, feat_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS monster_library (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      hp INTEGER DEFAULT 0,
+      max_hp INTEGER DEFAULT 0,
+      ac INTEGER DEFAULT 10,
+      initiative INTEGER DEFAULT 0,
+      notes TEXT DEFAULT '',
+      attacks TEXT DEFAULT '[]',
+      monster_data TEXT DEFAULT NULL,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   try { db.run(`ALTER TABLE characters ADD COLUMN class TEXT DEFAULT ''`); } catch(e) {}
@@ -209,6 +244,7 @@ async function initDb() {
   try { db.run(`ALTER TABLE users ADD COLUMN is_mestre INTEGER DEFAULT 0`); } catch(e) {}
   try { db.run(`ALTER TABLE session_participants ADD COLUMN encounter_initiative INTEGER DEFAULT NULL`); } catch(e) {}
   try { db.run(`ALTER TABLE sessions ADD COLUMN show_hp_to_players INTEGER DEFAULT 1`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN class_id INTEGER REFERENCES character_classes(id) ON DELETE SET NULL`); } catch(e) {}
 
   // Seed default users (only if they don't exist)
   const { hashPassword } = require('./auth');
@@ -224,6 +260,32 @@ async function initDb() {
     if (!exists) {
       const hash = hashPassword('1');
       db.run('INSERT INTO users (email, password_hash, is_admin, is_mestre) VALUES (?, ?, ?, ?)', [u.email, hash, u.is_admin, u.is_mestre]);
+    }
+  }
+
+  // Seed character classes
+  const seedClasses = [
+    { name: 'Mago',       description: 'Conjurador arcano de grande poder intelectual',       uses_magic: 1 },
+    { name: 'Feiticeiro', description: 'Conjurador arcano de poder inato e natural',           uses_magic: 1 },
+    { name: 'Bardo',      description: 'Conjurador versátil que mistura magia e performance',  uses_magic: 1 },
+    { name: 'Guerreiro',  description: 'Combatente treinado em armas e armaduras',             uses_magic: 0 },
+    { name: 'Ladino',     description: 'Especialista em furtividade, armadilhas e perícias',   uses_magic: 0 },
+  ];
+  for (const c of seedClasses) {
+    const exists = prepare('SELECT id FROM character_classes WHERE name = ?').get(c.name);
+    if (!exists) {
+      db.run('INSERT INTO character_classes (name, description, uses_magic) VALUES (?, ?, ?)', [c.name, c.description, c.uses_magic]);
+    }
+  }
+
+  // Seed feats
+  const seedFeats = [
+    { name: 'Iniciativa Aprimorada', description: '+4 na iniciativa' },
+  ];
+  for (const f of seedFeats) {
+    const exists = prepare('SELECT id FROM feats WHERE name = ?').get(f.name);
+    if (!exists) {
+      db.run('INSERT INTO feats (name, description) VALUES (?, ?)', [f.name, f.description]);
     }
   }
 
