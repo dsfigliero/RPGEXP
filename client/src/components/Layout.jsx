@@ -1,12 +1,14 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import { useState } from 'react'
+import { useTheme } from '../hooks/useTheme'
 import './Layout.css'
 
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768)
+  const { theme, setTheme, themes } = useTheme()
 
   function handleLogout() {
     logout()
@@ -45,6 +47,32 @@ export default function Layout() {
           </>}
         </nav>
         <div className="sidebar-footer">
+          <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
+            {themes.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: '0.72rem',
+                  padding: '0.3rem 0.4rem',
+                  background: theme === t.id ? 'var(--primary)' : 'var(--surface2)',
+                  color: theme === t.id ? '#fff' : 'var(--text-muted)',
+                  border: `1px solid ${theme === t.id ? 'var(--primary)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+                title={t.label}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
           <span className="text-muted text-sm">{user?.email}</span>
           <button className="btn-ghost btn-sm" onClick={handleLogout}>Sair</button>
         </div>

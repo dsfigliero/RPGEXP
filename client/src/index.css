@@ -1,6 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
+/* ── Tema Escuro (padrão) ── */
+:root, [data-theme="dark"] {
   --bg: #0f0f13;
   --surface: #1a1a24;
   --surface2: #22222f;
@@ -14,6 +15,40 @@
   --warning: #f0a843;
   --radius: 8px;
   --shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+/* ── Tema Claro ── */
+[data-theme="light"] {
+  --bg: #f0f0f5;
+  --surface: #ffffff;
+  --surface2: #e8e8f0;
+  --border: #d0d0de;
+  --primary: #5c4de0;
+  --primary-hover: #6b5ef0;
+  --danger: #c0392b;
+  --text: #1a1a2e;
+  --text-muted: #5a5a72;
+  --success: #2a7a50;
+  --warning: #c07010;
+  --radius: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.12);
+}
+
+/* ── Tema Pathfinder ── */
+[data-theme="pathfinder"] {
+  --bg: #1e1008;
+  --surface: #2e1c0e;
+  --surface2: #3d2a18;
+  --border: #5c3d25;
+  --primary: #c9971c;
+  --primary-hover: #daa520;
+  --danger: #b03a2e;
+  --text: #f0e0c0;
+  --text-muted: #a08060;
+  --success: #4a7a38;
+  --warning: #d4811a;
+  --radius: 6px;
+  --shadow: 0 2px 16px rgba(0,0,0,0.6);
 }
 
 body {
