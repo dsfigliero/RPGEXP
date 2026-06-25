@@ -74,7 +74,8 @@ router.get('/:id', authenticate, (req, res) => {
   if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
 
   const participants = prepare(`
-    SELECT c.id, c.name, c.class, c.level, c.hp, c.max_hp, c.ac, c.initiative, c.total_xp, u.email as user_email, u.id as user_id
+    SELECT c.id, c.name, c.class, c.level, c.hp, c.max_hp, c.ac, c.initiative as init_bonus,
+           sp.encounter_initiative, c.total_xp, u.email as user_email, u.id as user_id
     FROM session_participants sp
     JOIN characters c ON c.id = sp.character_id
     JOIN users u ON u.id = c.user_id
@@ -258,12 +259,12 @@ router.delete('/:id/npcs/:npcId', authenticate, (req, res) => {
 router.patch('/:id/participants/:charId/initiative', authenticate, (req, res) => {
   if (!canManageSession(req.user, req.params.id))
     return res.status(403).json({ error: 'Acesso negado' });
-  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.charId);
-  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  const sp = prepare('SELECT * FROM session_participants WHERE session_id = ? AND character_id = ?').get(req.params.id, req.params.charId);
+  if (!sp) return res.status(404).json({ error: 'Personagem não encontrado nesta sessão' });
   const { initiative } = req.body;
   if (initiative === undefined) return res.status(400).json({ error: 'initiative obrigatório' });
-  prepare('UPDATE characters SET initiative = ? WHERE id = ?').run(initiative, char.id);
-  res.json({ ok: true });
+  prepare('UPDATE session_participants SET encounter_initiative = ? WHERE session_id = ? AND character_id = ?').run(initiative, req.params.id, req.params.charId);
+  res.json({ ok: true, encounter_initiative: initiative });
 });
 
 router.post('/:id/combat/damage', authenticate, (req, res) => {
@@ -297,8 +298,17 @@ router.post('/:id/my-initiative', authenticate, (req, res) => {
   if (!char) return res.status(403).json({ error: 'Você não tem um personagem nesta sessão' });
   const { initiative } = req.body;
   if (initiative === undefined) return res.status(400).json({ error: 'initiative obrigatório' });
-  prepare('UPDATE characters SET initiative = ? WHERE id = ?').run(initiative, char.id);
+  prepare('UPDATE session_participants SET encounter_initiative = ? WHERE session_id = ? AND character_id = ?').run(initiative, req.params.id, char.id);
   res.json({ ok: true, initiative, character_id: char.id });
+});
+
+router.patch('/:id/config', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const { show_hp_to_players } = req.body;
+  if (show_hp_to_players === undefined) return res.status(400).json({ error: 'show_hp_to_players obrigatório' });
+  prepare('UPDATE sessions SET show_hp_to_players = ? WHERE id = ?').run(show_hp_to_players ? 1 : 0, req.params.id);
+  res.json({ ok: true, show_hp_to_players });
 });
 
 module.exports = router;

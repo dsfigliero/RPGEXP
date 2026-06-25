@@ -25,7 +25,7 @@ export default function CampaignDetail() {
   const isAdmin = user?.is_admin
 
   function openNewSession() {
-    setModal({ name: '', description: '', campaign_id: id })
+    setModal({ name: '', description: '', campaign_id: id, date: new Date().toISOString().split('T')[0] })
     setError('')
   }
 
@@ -33,7 +33,7 @@ export default function CampaignDetail() {
     if (!modal.name.trim()) return setError('Nome obrigatório')
     setSaving(true)
     try {
-      await api.post('/sessions', { name: modal.name, description: modal.description, campaign_id: modal.campaign_id })
+      await api.post('/sessions', { name: modal.name, description: modal.description, campaign_id: modal.campaign_id, date: modal.date })
       setModal(null)
       load()
     } catch (err) {
@@ -213,6 +213,10 @@ export default function CampaignDetail() {
             <div className="form-group">
               <label>Descrição</label>
               <textarea rows={3} value={modal.description} onChange={e => setModal(m => ({ ...m, description: e.target.value }))} style={{ resize: 'vertical' }} />
+            </div>
+            <div className="form-group">
+              <label>Data da Sessão</label>
+              <input type="date" value={modal.date || ''} onChange={e => setModal(m => ({ ...m, date: e.target.value }))} />
             </div>
             {error && <p className="error-msg">{error}</p>}
             <div className="modal-footer">

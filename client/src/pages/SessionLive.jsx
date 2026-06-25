@@ -102,12 +102,14 @@ export default function SessionLive() {
             </div>
             <div className="card" style={{ textAlign: 'center', padding: '0.5rem' }}>
               <div className="text-muted text-sm">Iniciativa</div>
-              <div style={{ fontWeight: 700 }}>{char.initiative || 0}</div>
+              <div style={{ fontWeight: 700 }}>{char.encounter_initiative ?? '—'}</div>
             </div>
           </div>
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-            <p className="text-muted text-sm" style={{ marginBottom: '0.5rem' }}>Informe sua iniciativa</p>
+            <p className="text-muted text-sm" style={{ marginBottom: '0.5rem' }}>
+              Informe sua iniciativa {char.init_bonus !== 0 && `(bônus de iniciativa: ${char.init_bonus >= 0 ? '+' : ''}${char.init_bonus})`}
+            </p>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <input
                 type="number"
@@ -137,9 +139,17 @@ export default function SessionLive() {
               <div key={p.id} className="card" style={{ textAlign: 'center' }}>
                 <div style={{ fontWeight: 600 }}>⚔️ {p.name}</div>
                 <div className="text-muted text-sm">{p.class ? `${p.class} • ` : ''}Nv {p.level}</div>
-                {p.initiative > 0 && (
+                {session.show_hp_to_players === 1 && (
+                  <>
+                    <div className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>
+                      HP: <strong>{p.hp}/{p.max_hp}</strong>
+                    </div>
+                    <HpBar hp={p.hp} maxHp={p.max_hp} />
+                  </>
+                )}
+                {p.encounter_initiative != null && (
                   <div className="text-muted text-sm" style={{ marginTop: '0.25rem' }}>
-                    Inic: <strong>{p.initiative}</strong>
+                    Inic: <strong>{p.encounter_initiative}</strong>
                   </div>
                 )}
               </div>

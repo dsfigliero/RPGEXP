@@ -67,6 +67,7 @@ export default function GmDashboard() {
   const [dragOverIndex, setDragOverIndex] = useState(null)
   const [combatLog, setCombatLog] = useState([])
   const [showLog, setShowLog] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -190,7 +191,7 @@ export default function GmDashboard() {
     const dragged = sorted[dragIndex];
     const newSorted = sorted.filter((_, i) => i !== dragIndex);
     const cardBefore = dropIndex === 0 ? newSorted[0] : newSorted[dropIndex - 1];
-    const newInit = cardBefore ? (cardBefore.initiative || 0) : (dragged.initiative || 0);
+    const newInit = cardBefore ? cardInitiative(cardBefore) : cardInitiative(dragged);
     setDragIndex(null);
     setDragOverIndex(null);
     updateInitiative(dragged, newInit);
@@ -247,8 +248,13 @@ export default function GmDashboard() {
     ...participants.map(p => ({ ...p, _type: 'player' })),
     ...npcs.map(n => ({ ...n, _type: 'npc' })),
   ]
+
+  function cardInitiative(card) {
+    return card._type === 'player' ? (card.encounter_initiative ?? 0) : (card.initiative || 0);
+  }
+
   const sorted = sortByInit
-    ? [...allCards].sort((a, b) => (b.initiative || 0) - (a.initiative || 0))
+    ? [...allCards].sort((a, b) => cardInitiative(b) - cardInitiative(a))
     : allCards
 
   return (
@@ -259,8 +265,27 @@ export default function GmDashboard() {
 
       <div className="page-header">
         <h1>Dashboard — {session.name}</h1>
-        <button className="btn-primary btn-sm" onClick={openNpcCreate}>+ NPC</button>
+        <div className="flex gap-2">
+          <button className="btn-ghost btn-sm" onClick={() => setShowSettings(s => !s)} title="Configurações da sessão">⚙️ Configurações</button>
+          <button className="btn-primary btn-sm" onClick={openNpcCreate}>+ NPC</button>
+        </div>
       </div>
+
+      {showSettings && (
+        <div className="card" style={{ marginBottom: '1rem', background: 'var(--surface2)' }}>
+          <strong style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.9rem' }}>Configurações da Sessão</strong>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+            <input type="checkbox"
+              checked={!!session?.show_hp_to_players}
+              onChange={async e => {
+                await api.patch(`/sessions/${sessionId}/config`, { show_hp_to_players: e.target.checked })
+                load()
+              }}
+            />
+            <span>Mostrar HP dos personagens para os jogadores no painel Ao Vivo</span>
+          </label>
+        </div>
+      )}
 
       <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
         {[['hp', 'HP'], ['ca', 'CA'], ['iniciativa', 'Iniciativa'], ['nivel', 'Nível'], ['classe', 'Classe']].map(([key, label]) => (
@@ -316,14 +341,14 @@ export default function GmDashboard() {
                     {fields.iniciativa && (
                       editingInit === `player-${p.id}`
                         ? <input type="number"
-                            value={initInputValue[`player-${p.id}`] ?? p.initiative ?? 0}
+                            value={initInputValue[`player-${p.id}`] ?? (p.encounter_initiative ?? 0)}
                             autoFocus
                             style={{ width: 55, fontSize: '0.85rem', padding: '0.1rem 0.3rem' }}
                             onChange={e => setInitInputValue(v => ({ ...v, [`player-${p.id}`]: +e.target.value }))}
                             onBlur={() => { updateInitiative(p, initInputValue[`player-${p.id}`] ?? 0); setEditingInit(null); }}
                             onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingInit(null); }} />
-                        : <span style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => { setEditingInit(`player-${p.id}`); setInitInputValue(v => ({ ...v, [`player-${p.id}`]: p.initiative || 0 })) }} title="Clique para editar iniciativa">
-                            Inic: {p.initiative || 0}
+                        : <span style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => { setEditingInit(`player-${p.id}`); setInitInputValue(v => ({ ...v, [`player-${p.id}`]: p.encounter_initiative ?? 0 })) }} title="Clique para editar iniciativa">
+                            Inic: {p.encounter_initiative != null ? `${p.encounter_initiative} (bônus: ${p.init_bonus >= 0 ? '+' : ''}${p.init_bonus})` : `— (bônus: ${p.init_bonus >= 0 ? '+' : ''}${p.init_bonus})`}
                           </span>
                     )}
                   </div>
