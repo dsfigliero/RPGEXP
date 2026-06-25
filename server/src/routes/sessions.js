@@ -181,8 +181,13 @@ router.post('/:id/finalize', authenticate, (req, res) => {
     prepare('UPDATE sessions SET is_finalized = 1 WHERE id = ?').run(req.params.id);
   });
 
-  finalize();
-  res.json({ ok: true, xp_results: xpResults });
+  try {
+    finalize();
+    res.json({ ok: true, xp_results: xpResults });
+  } catch (err) {
+    console.error('Erro ao finalizar sessão:', err);
+    res.status(500).json({ error: 'Erro ao finalizar sessão' });
+  }
 });
 
 module.exports = router;

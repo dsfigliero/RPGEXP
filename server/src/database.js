@@ -6,8 +6,10 @@ const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'rpg.db
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 let db;
+let inTransaction = false;
 
 function saveDb() {
+  if (inTransaction) return;
   const data = db.export();
   fs.writeFileSync(dbPath, Buffer.from(data));
 }
@@ -148,15 +150,18 @@ function exec(sql) {
 
 function transaction(fn) {
   return function(...args) {
+    inTransaction = true;
     db.run('BEGIN');
     try {
       fn(...args);
       db.run('COMMIT');
-      saveDb();
     } catch (e) {
-      db.run('ROLLBACK');
+      try { db.run('ROLLBACK'); } catch (_) {}
+      inTransaction = false;
       throw e;
     }
+    inTransaction = false;
+    saveDb();
   };
 }
 
