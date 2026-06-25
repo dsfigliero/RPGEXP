@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../api'
+import { useSessionEvents } from '../hooks/useSessionEvents'
 
 function HpBar({ hp, maxHp }) {
   if (!maxHp) return null;
@@ -48,6 +49,147 @@ function parseMeleeAttacks(offense) {
   return attacks;
 }
 
+const CIRCLE_LABELS_SHORT = ['Trq', '1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º']
+
+function GmSpellPanel({ charId, castingType, spellData, onToggleCast, onUseSpell }) {
+  const [open, setOpen] = useState(false)
+  const isPrepared = castingType === 'prepared'
+  const slots = spellData?.slots || []
+  const prepared = spellData?.prepared || []
+  const known = spellData?.known || []
+  const activeSlots = slots.filter(s => s.total_slots > 0)
+
+  const allCircles = [...new Set([
+    ...activeSlots.map(s => s.circle),
+    ...prepared.map(p => p.circle),
+    ...known.map(k => k.circle),
+  ])].sort((a, b) => a - b)
+
+  const hasData = allCircles.length > 0
+  const isLoaded = spellData !== undefined
+
+  // Header summary
+  const headerSummary = (() => {
+    if (!isLoaded || !hasData) return null
+    if (isPrepared) {
+      const available = prepared.filter(p => !p.is_cast).length
+      if (prepared.length === 0) return null
+      return (
+        <span style={{ fontSize: '0.7rem', color: available === 0 ? 'var(--danger)' : 'var(--success)' }}>
+          {available} disp
+        </span>
+      )
+    } else {
+      if (activeSlots.length === 0) return null
+      return (
+        <span style={{ display: 'flex', gap: '0.3rem' }}>
+          {activeSlots.slice(0, 4).map(s => {
+            const circleKnown = known.filter(k => k.circle === s.circle)
+            const totalUsed = circleKnown.reduce((sum, sp) => sum + (sp.times_cast || 0), 0)
+            const rem = Math.max(0, s.total_slots - totalUsed)
+            return (
+              <span key={s.circle} style={{ fontSize: '0.7rem', color: rem === 0 ? 'var(--danger)' : 'var(--success)' }}>
+                {CIRCLE_LABELS_SHORT[s.circle]}:{rem}
+              </span>
+            )
+          })}
+        </span>
+      )
+    }
+  })()
+
+  return (
+    <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
+      <button
+        className="btn-ghost btn-sm"
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}
+      >
+        <span>✨ Magias {isPrepared ? '(Prep.)' : '(Espon.)'}</span>
+        <span style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          {headerSummary}
+          {open ? '▲' : '▼'}
+        </span>
+      </button>
+      {open && !isLoaded && (
+        <p className="text-muted text-sm" style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}>Carregando...</p>
+      )}
+      {open && isLoaded && !hasData && (
+        <p className="text-muted text-sm" style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}>Sem magias configuradas.</p>
+      )}
+      {open && isLoaded && hasData && (
+        <div style={{ marginTop: '0.5rem' }}>
+          {isPrepared ? (
+            // Prepared caster view: memorized spells with cast toggles
+            allCircles.map(circle => {
+              const circlePrep = prepared.filter(p => p.circle === circle)
+              if (circlePrep.length === 0) return null
+              const available = circlePrep.filter(p => !p.is_cast).length
+              return (
+                <div key={circle} style={{ marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                    <span>{circle === 0 ? 'Truques' : `${circle}º Círculo`}</span>
+                    <span style={{ color: available === 0 ? 'var(--danger)' : 'inherit' }}>{available} disp</span>
+                  </div>
+                  {circlePrep.map(prep => (
+                    <div key={prep.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.2rem 0.35rem', marginBottom: '0.15rem', borderRadius: 4, background: prep.is_cast ? 'var(--surface2)' : 'rgba(124,106,247,0.08)', opacity: prep.is_cast ? 0.6 : 1 }}>
+                      <span style={{ fontSize: '0.8rem', textDecoration: prep.is_cast ? 'line-through' : 'none' }}>{prep.spell_name}</span>
+                      <button
+                        className={prep.is_cast ? 'btn-ghost btn-sm' : 'btn-primary btn-sm'}
+                        style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem' }}
+                        onClick={() => onToggleCast(charId, prep.id)}
+                      >{prep.is_cast ? '↺' : '✓'}</button>
+                    </div>
+                  ))}
+                </div>
+              )
+            })
+          ) : (
+            // Spontaneous caster view: per-spell cast counters
+            allCircles.map(circle => {
+              const slot = slots.find(s => s.circle === circle) || { circle, total_slots: 0, used_slots: 0 }
+              const circleKnown = known.filter(k => k.circle === circle)
+              const totalUsed = circleKnown.reduce((sum, sp) => sum + (sp.times_cast || 0), 0)
+              const remaining = Math.max(0, slot.total_slots - totalUsed)
+              return (
+                <div key={circle} style={{ marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                    <span>{circle === 0 ? 'Truques' : `${circle}º Círculo`}</span>
+                    {circle > 0 && slot.total_slots > 0 && (
+                      <span style={{ fontWeight: 700, color: remaining === 0 ? 'var(--danger)' : 'var(--text)' }}>
+                        {remaining}/{slot.total_slots} restantes
+                      </span>
+                    )}
+                  </div>
+                  {circleKnown.map(spell => {
+                    const timeCast = spell.times_cast || 0
+                    const canCast = circle === 0 || remaining > 0
+                    return (
+                      <div key={spell.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.2rem 0.35rem', marginBottom: '0.1rem', fontSize: '0.78rem', borderLeft: `2px solid ${timeCast > 0 ? 'var(--primary)' : 'var(--border)'}` }}>
+                        <span>
+                          {spell.name}
+                          {timeCast > 0 && <span style={{ marginLeft: '0.3rem', opacity: 0.7 }}>({timeCast}×)</span>}
+                        </span>
+                        {circle > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                            <button className="btn-ghost btn-sm" style={{ padding: '0.05rem 0.35rem', fontSize: '0.72rem' }} disabled={timeCast === 0} onClick={() => onUseSpell(charId, spell.id, -1)}>−</button>
+                            <span style={{ minWidth: 14, textAlign: 'center', fontWeight: 700 }}>{timeCast}</span>
+                            <button className="btn-primary btn-sm" style={{ padding: '0.05rem 0.35rem', fontSize: '0.72rem' }} disabled={!canCast} onClick={() => onUseSpell(charId, spell.id, 1)}>⚡</button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function GmDashboard() {
   const { sessionId } = useParams()
   const [session, setSession] = useState(null)
@@ -71,6 +213,39 @@ export default function GmDashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [charSpellData, setCharSpellData] = useState({}) // { [charId]: { slots, prepared } }
+
+  async function loadAllSpells(participants) {
+    const results = {}
+    await Promise.all((participants || []).filter(p => !p.is_npc && p.uses_magic === 1).map(async p => {
+      try {
+        const [slotsRes, prepRes, knownRes] = await Promise.all([
+          api.get(`/characters/${p.id}/spell-slots`),
+          api.get(`/characters/${p.id}/prepared-spells`),
+          api.get(`/characters/${p.id}/spells`),
+        ])
+        results[p.id] = { slots: slotsRes.data, prepared: prepRes.data, known: knownRes.data }
+      } catch (_) {}
+    }))
+    setCharSpellData(results)
+  }
+
+  async function gmToggleCast(charId, prepId) {
+    await api.patch(`/characters/${charId}/prepared-spells/${prepId}/cast`, {})
+    const r = await api.get(`/characters/${charId}/prepared-spells`)
+    setCharSpellData(prev => ({ ...prev, [charId]: { ...prev[charId], prepared: r.data } }))
+  }
+
+  async function gmUseSpell(charId, spellId, delta) {
+    const r = await api.patch(`/characters/${charId}/spells/${spellId}/use`, { delta })
+    setCharSpellData(prev => ({
+      ...prev,
+      [charId]: {
+        ...prev[charId],
+        known: (prev[charId]?.known || []).map(s => s.id === spellId ? r.data : s),
+      },
+    }))
+  }
 
   async function load() {
     const [sessRes, npcsRes, itemsRes, libRes] = await Promise.all([
@@ -85,6 +260,7 @@ export default function GmDashboard() {
     setLibraryMonsters(libRes.data)
     setLoading(false)
     if (showLog) loadCombatLog();
+    loadAllSpells(sessRes.data.participants || [])
   }
 
   async function loadCombatLog() {
@@ -93,6 +269,20 @@ export default function GmDashboard() {
   }
 
   useEffect(() => { load() }, [sessionId])
+
+  useSessionEvents(sessionId, async (event) => {
+    if (event.type === 'spells_updated') {
+      const charId = event.character_id
+      try {
+        const [slotsRes, prepRes, knownRes] = await Promise.all([
+          api.get(`/characters/${charId}/spell-slots`),
+          api.get(`/characters/${charId}/prepared-spells`),
+          api.get(`/characters/${charId}/spells`),
+        ])
+        setCharSpellData(prev => ({ ...prev, [charId]: { slots: slotsRes.data, prepared: prepRes.data, known: knownRes.data } }))
+      } catch (_) {}
+    }
+  })
 
   function toggleField(f) {
     setFields(prev => ({ ...prev, [f]: !prev[f] }))
@@ -287,6 +477,16 @@ export default function GmDashboard() {
             />
             <span>Mostrar HP dos personagens para os jogadores no painel Ao Vivo</span>
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginTop: '0.5rem' }}>
+            <input type="checkbox"
+              checked={!!session?.spells_locked}
+              onChange={async e => {
+                await api.patch(`/sessions/${sessionId}/config`, { spells_locked: e.target.checked })
+                load()
+              }}
+            />
+            <span>🔒 Bloquear alterações de magias dos jogadores</span>
+          </label>
         </div>
       )}
 
@@ -359,6 +559,15 @@ export default function GmDashboard() {
                 <button className="btn-ghost btn-sm" onClick={() => openActionModal(p)} style={{ marginTop: '0.25rem', width: '100%' }}>
                   {actionFeedback === p.id ? '✓ Registrado!' : '⚡ Registrar Ação'}
                 </button>
+                {p.uses_magic === 1 && (
+                  <GmSpellPanel
+                    charId={p.id}
+                    castingType={p.casting_type}
+                    spellData={charSpellData[p.id]}
+                    onToggleCast={gmToggleCast}
+                    onUseSpell={gmUseSpell}
+                  />
+                )}
               </div>
             )
           } else {

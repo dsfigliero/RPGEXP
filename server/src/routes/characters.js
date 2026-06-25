@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { prepare } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
+const sessionEvents = require('../sessionEvents');
 
 function isMestreOfCharacter(userId, charId) {
   const row = prepare(`
@@ -12,6 +13,19 @@ function isMestreOfCharacter(userId, charId) {
     LIMIT 1
   `).get(charId, userId);
   return !!row;
+}
+
+function emitSpellUpdate(characterId) {
+  try {
+    const sessions = prepare(`
+      SELECT sp.session_id FROM session_participants sp
+      JOIN sessions s ON s.id = sp.session_id
+      WHERE sp.character_id = ? AND s.is_finalized = 0
+    `).all(characterId)
+    for (const s of sessions) {
+      sessionEvents.emit(`session:${s.session_id}`, { type: 'spells_updated', character_id: Number(characterId) })
+    }
+  } catch(e) {}
 }
 
 const ALL_FIELDS = ['name','class','level','hp','max_hp','ac','initiative',
@@ -240,6 +254,143 @@ router.delete('/:id/feats/:featId', authenticate, (req, res) => {
   if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
   prepare('DELETE FROM character_feats WHERE character_id = ? AND feat_id = ?').run(req.params.id, req.params.featId);
   res.json({ ok: true });
+});
+
+// GET /:id/spells — known spells list
+router.get('/:id/spells', authenticate, (req, res) => {
+  res.json(prepare('SELECT * FROM character_known_spells WHERE character_id = ? ORDER BY circle, name').all(req.params.id));
+});
+
+// POST /:id/spells — add spell to known list
+router.post('/:id/spells', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const { name, circle = 0, school = '', description = '', components = '', casting_time = '', duration = '', range = '', saving_throw = '', notes = '' } = req.body;
+  if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+  const result = prepare('INSERT INTO character_known_spells (character_id, name, circle, school, description, components, casting_time, duration, range, saving_throw, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(req.params.id, name, circle, school, description, components, casting_time, duration, range, saving_throw, notes);
+  res.json(prepare('SELECT * FROM character_known_spells WHERE id = ?').get(result.lastInsertRowid));
+});
+
+// PATCH /:id/spells/reset-day — reset times_cast for all spells of a circle (spontaneous casters)
+router.patch('/:id/spells/reset-day', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const { circle } = req.body;
+  if (circle === undefined) return res.status(400).json({ error: 'circle obrigatório' });
+  prepare('UPDATE character_known_spells SET times_cast = 0 WHERE character_id = ? AND circle = ?').run(req.params.id, circle);
+  emitSpellUpdate(req.params.id);
+  res.json({ ok: true });
+});
+
+// PATCH /:id/spells/:spellId/use — increment/decrement times_cast for a known spell (spontaneous casters)
+router.patch('/:id/spells/:spellId/use', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const spell = prepare('SELECT * FROM character_known_spells WHERE id = ? AND character_id = ?').get(req.params.spellId, req.params.id);
+  if (!spell) return res.status(404).json({ error: 'Magia não encontrada' });
+  const { delta } = req.body;
+  const newVal = Math.max(0, (spell.times_cast || 0) + (delta || 1));
+  prepare('UPDATE character_known_spells SET times_cast = ? WHERE id = ?').run(newVal, spell.id);
+  emitSpellUpdate(req.params.id);
+  res.json(prepare('SELECT * FROM character_known_spells WHERE id = ?').get(spell.id));
+});
+
+// PUT /:id/spells/:spellId
+router.put('/:id/spells/:spellId', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const spell = prepare('SELECT * FROM character_known_spells WHERE id = ? AND character_id = ?').get(req.params.spellId, req.params.id);
+  if (!spell) return res.status(404).json({ error: 'Magia não encontrada' });
+  const { name, circle, school, description, components, casting_time, duration, range, saving_throw, notes } = req.body;
+  prepare('UPDATE character_known_spells SET name=?, circle=?, school=?, description=?, components=?, casting_time=?, duration=?, range=?, saving_throw=?, notes=? WHERE id=?')
+    .run(name ?? spell.name, circle ?? spell.circle, school ?? spell.school, description ?? spell.description, components ?? spell.components, casting_time ?? spell.casting_time, duration ?? spell.duration, range ?? spell.range, saving_throw ?? spell.saving_throw, notes ?? spell.notes, spell.id);
+  res.json(prepare('SELECT * FROM character_known_spells WHERE id = ?').get(spell.id));
+});
+
+// DELETE /:id/spells/:spellId
+router.delete('/:id/spells/:spellId', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  prepare('DELETE FROM character_known_spells WHERE id = ? AND character_id = ?').run(req.params.spellId, req.params.id);
+  res.json({ ok: true });
+});
+
+// GET /:id/spell-slots
+router.get('/:id/spell-slots', authenticate, (req, res) => {
+  res.json(prepare('SELECT * FROM character_spell_slots WHERE character_id = ? ORDER BY circle').all(req.params.id));
+});
+
+// PUT /:id/spell-slots — upsert slot config for a circle
+router.put('/:id/spell-slots', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const { circle, total_slots, used_slots } = req.body;
+  if (circle === undefined) return res.status(400).json({ error: 'circle obrigatório' });
+  const existing = prepare('SELECT * FROM character_spell_slots WHERE character_id = ? AND circle = ?').get(req.params.id, circle);
+  if (existing) {
+    prepare('UPDATE character_spell_slots SET total_slots = ?, used_slots = ? WHERE character_id = ? AND circle = ?')
+      .run(total_slots ?? existing.total_slots, used_slots ?? existing.used_slots, req.params.id, circle);
+  } else {
+    prepare('INSERT INTO character_spell_slots (character_id, circle, total_slots, used_slots) VALUES (?, ?, ?, ?)').run(req.params.id, circle, total_slots ?? 0, used_slots ?? 0);
+  }
+  emitSpellUpdate(req.params.id)
+  res.json(prepare('SELECT * FROM character_spell_slots WHERE character_id = ? AND circle = ?').get(req.params.id, circle));
+});
+
+// GET /:id/prepared-spells
+router.get('/:id/prepared-spells', authenticate, (req, res) => {
+  res.json(prepare('SELECT * FROM character_prepared_spells WHERE character_id = ? ORDER BY circle, created_at').all(req.params.id));
+});
+
+// POST /:id/prepared-spells
+router.post('/:id/prepared-spells', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const { circle, spell_name, known_spell_id = null } = req.body;
+  if (!spell_name || circle === undefined) return res.status(400).json({ error: 'circle e spell_name obrigatórios' });
+  const result = prepare('INSERT INTO character_prepared_spells (character_id, known_spell_id, circle, spell_name) VALUES (?, ?, ?, ?)').run(req.params.id, known_spell_id, circle, spell_name);
+  emitSpellUpdate(req.params.id)
+  res.json(prepare('SELECT * FROM character_prepared_spells WHERE id = ?').get(result.lastInsertRowid));
+});
+
+// DELETE /:id/prepared-spells/:prepId
+router.delete('/:id/prepared-spells/:prepId', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  prepare('DELETE FROM character_prepared_spells WHERE id = ? AND character_id = ?').run(req.params.prepId, req.params.id);
+  emitSpellUpdate(req.params.id)
+  res.json({ ok: true });
+});
+
+// PATCH /:id/prepared-spells/:prepId/cast — toggle is_cast
+router.patch('/:id/prepared-spells/:prepId/cast', authenticate, (req, res) => {
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  if (char.user_id !== req.user.id && !req.user.is_admin) return res.status(403).json({ error: 'Acesso negado' });
+  const prep = prepare('SELECT * FROM character_prepared_spells WHERE id = ? AND character_id = ?').get(req.params.prepId, req.params.id);
+  if (!prep) return res.status(404).json({ error: 'Não encontrado' });
+  prepare('UPDATE character_prepared_spells SET is_cast = ? WHERE id = ?').run(prep.is_cast ? 0 : 1, prep.id);
+  emitSpellUpdate(req.params.id)
+  res.json(prepare('SELECT * FROM character_prepared_spells WHERE id = ?').get(prep.id));
+});
+
+// GET /:id/spell-lock-status — check if character is in an active locked session
+router.get('/:id/spell-lock-status', authenticate, (req, res) => {
+  const locked = prepare(`
+    SELECT s.id FROM sessions s
+    JOIN session_participants sp ON sp.session_id = s.id
+    WHERE sp.character_id = ? AND s.is_finalized = 0 AND s.spells_locked = 1
+    LIMIT 1
+  `).get(req.params.id);
+  res.json({ spells_locked: locked ? 1 : 0 });
 });
 
 module.exports = router;

@@ -212,6 +212,65 @@ async function initDb() {
       created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS character_known_spells (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      circle INTEGER NOT NULL DEFAULT 0,
+      school TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      components TEXT DEFAULT '',
+      casting_time TEXT DEFAULT '',
+      duration TEXT DEFAULT '',
+      range TEXT DEFAULT '',
+      saving_throw TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS character_spell_slots (
+      character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      circle INTEGER NOT NULL,
+      total_slots INTEGER DEFAULT 0,
+      used_slots INTEGER DEFAULT 0,
+      PRIMARY KEY (character_id, circle)
+    );
+
+    CREATE TABLE IF NOT EXISTS character_prepared_spells (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      known_spell_id INTEGER REFERENCES character_known_spells(id) ON DELETE SET NULL,
+      circle INTEGER NOT NULL,
+      spell_name TEXT NOT NULL,
+      is_cast INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS spell_library (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      display_name TEXT,
+      school TEXT DEFAULT '',
+      subschool TEXT DEFAULT '',
+      descriptors TEXT DEFAULT '[]',
+      levels TEXT DEFAULT '[]',
+      casting_time TEXT DEFAULT '',
+      components TEXT DEFAULT '{}',
+      range TEXT DEFAULT '',
+      area TEXT DEFAULT '',
+      effect TEXT DEFAULT '',
+      target TEXT DEFAULT '',
+      duration TEXT DEFAULT '',
+      saving_throw TEXT DEFAULT '{}',
+      spell_resistance TEXT DEFAULT '{}',
+      description_short TEXT DEFAULT '',
+      description_full TEXT DEFAULT '',
+      source TEXT DEFAULT '{}',
+      raw_data TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   try { db.run(`ALTER TABLE characters ADD COLUMN class TEXT DEFAULT ''`); } catch(e) {}
@@ -245,6 +304,9 @@ async function initDb() {
   try { db.run(`ALTER TABLE session_participants ADD COLUMN encounter_initiative INTEGER DEFAULT NULL`); } catch(e) {}
   try { db.run(`ALTER TABLE sessions ADD COLUMN show_hp_to_players INTEGER DEFAULT 1`); } catch(e) {}
   try { db.run(`ALTER TABLE characters ADD COLUMN class_id INTEGER REFERENCES character_classes(id) ON DELETE SET NULL`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_classes ADD COLUMN casting_type TEXT DEFAULT 'prepared'`); } catch(e) {}
+  try { db.run(`ALTER TABLE sessions ADD COLUMN spells_locked INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_known_spells ADD COLUMN times_cast INTEGER DEFAULT 0`); } catch(e) {}
 
   // Seed default users (only if they don't exist)
   const { hashPassword } = require('./auth');
@@ -276,6 +338,18 @@ async function initDb() {
     if (!exists) {
       db.run('INSERT INTO character_classes (name, description, uses_magic) VALUES (?, ?, ?)', [c.name, c.description, c.uses_magic]);
     }
+  }
+
+  // Update casting_type for existing seeded classes
+  const castingTypes = {
+    'Mago': 'prepared',
+    'Feiticeiro': 'spontaneous',
+    'Bardo': 'spontaneous',
+    'Guerreiro': 'none',
+    'Ladino': 'none',
+  };
+  for (const [name, type] of Object.entries(castingTypes)) {
+    db.run('UPDATE character_classes SET casting_type = ? WHERE name = ?', [type, name]);
   }
 
   // Seed feats

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { prepare, transaction } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
+const sessionEvents = require('../sessionEvents');
 
 function isMestreOfCampaign(userId, campaignId) {
   if (!campaignId) return false;
@@ -43,6 +44,37 @@ function calculateXP(sessionId) {
   });
 }
 
+router.get('/:id/events', (req, res) => {
+  // Manual auth: accept token from query param (SSE can't set headers)
+  const { verifyToken } = require('../auth')
+  const token = req.query.token || req.headers.authorization?.split(' ')[1]
+  if (!token) return res.status(401).end()
+  try { req.user = verifyToken(token) } catch(e) { return res.status(401).end() }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+  res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`)
+
+  const sessionId = req.params.id
+  const onEvent = (data) => {
+    try { res.write(`data: ${JSON.stringify(data)}\n\n`) } catch(e) {}
+  }
+  sessionEvents.on(`session:${sessionId}`, onEvent)
+
+  const keepalive = setInterval(() => {
+    try { res.write(': keepalive\n\n') } catch(e) { clearInterval(keepalive) }
+  }, 25000)
+
+  req.on('close', () => {
+    sessionEvents.off(`session:${sessionId}`, onEvent)
+    clearInterval(keepalive)
+  })
+})
+
 router.get('/', authenticate, (req, res) => {
   if (req.user.is_admin) {
     return res.json(prepare(`
@@ -75,10 +107,12 @@ router.get('/:id', authenticate, (req, res) => {
 
   const participants = prepare(`
     SELECT c.id, c.name, c.class, c.level, c.hp, c.max_hp, c.ac, c.initiative as init_bonus,
-           sp.encounter_initiative, c.total_xp, u.email as user_email, u.id as user_id
+           sp.encounter_initiative, c.total_xp, u.email as user_email, u.id as user_id,
+           cc.uses_magic, cc.casting_type
     FROM session_participants sp
     JOIN characters c ON c.id = sp.character_id
     JOIN users u ON u.id = c.user_id
+    LEFT JOIN character_classes cc ON cc.id = c.class_id
     WHERE sp.session_id = ?
   `).all(req.params.id);
 
@@ -305,10 +339,13 @@ router.post('/:id/my-initiative', authenticate, (req, res) => {
 router.patch('/:id/config', authenticate, (req, res) => {
   if (!canManageSession(req.user, req.params.id))
     return res.status(403).json({ error: 'Acesso negado' });
-  const { show_hp_to_players } = req.body;
-  if (show_hp_to_players === undefined) return res.status(400).json({ error: 'show_hp_to_players obrigatório' });
-  prepare('UPDATE sessions SET show_hp_to_players = ? WHERE id = ?').run(show_hp_to_players ? 1 : 0, req.params.id);
-  res.json({ ok: true, show_hp_to_players });
+  const { show_hp_to_players, spells_locked } = req.body;
+  const session = prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+  const newShowHp = show_hp_to_players !== undefined ? (show_hp_to_players ? 1 : 0) : session.show_hp_to_players;
+  const newSpellsLocked = spells_locked !== undefined ? (spells_locked ? 1 : 0) : session.spells_locked;
+  prepare('UPDATE sessions SET show_hp_to_players = ?, spells_locked = ? WHERE id = ?').run(newShowHp, newSpellsLocked, session.id);
+  res.json({ ok: true, show_hp_to_players: newShowHp, spells_locked: newSpellsLocked });
 });
 
 module.exports = router;

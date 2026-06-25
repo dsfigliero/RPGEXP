@@ -38,6 +38,7 @@ export default function Layout() {
           <NavLink to="/sessions" onClick={navClick}>📜 Minhas Sessões</NavLink>
           <NavLink to="/campaigns" onClick={navClick}>🗺 Campanhas</NavLink>
           <NavLink to="/monsters" onClick={navClick}>👹 Monstros</NavLink>
+          <NavLink to="/spell-library" onClick={navClick}>📚 Biblioteca de Magias</NavLink>
           {user?.is_admin && <>
             <div className="nav-section-label" style={{ marginTop: '1rem' }}>Admin</div>
             <NavLink to="/admin/sessions" onClick={navClick}>🗂 Sessões</NavLink>

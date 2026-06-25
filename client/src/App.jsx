@@ -22,6 +22,8 @@ import CharacterLogs from './pages/admin/CharacterLogs'
 import Classes from './pages/admin/Classes'
 import Feats from './pages/admin/Feats'
 import MonsterLibrary from './pages/MonsterLibrary'
+import CharacterSpells from './pages/CharacterSpells'
+import SpellLibrary from './pages/SpellLibrary'
 
 function RequireAuth({ children }) {
   const { user } = useAuth()
@@ -51,6 +53,7 @@ export default function App() {
             <Route path="campaigns" element={<Campaigns />} />
             <Route path="campaigns/:id" element={<CampaignDetail />} />
             <Route path="characters/:id" element={<CharacterPanel />} />
+            <Route path="characters/:id/spells" element={<CharacterSpells />} />
             <Route path="dashboard/:sessionId" element={<GmDashboard />} />
             <Route path="admin/evaluation-items" element={<RequireAdmin><EvaluationItems /></RequireAdmin>} />
             <Route path="admin/sessions" element={<RequireAdmin><AdminSessions /></RequireAdmin>} />
@@ -60,6 +63,7 @@ export default function App() {
             <Route path="admin/users" element={<RequireAdmin><Users /></RequireAdmin>} />
             <Route path="admin/character-logs" element={<RequireAdmin><CharacterLogs /></RequireAdmin>} />
             <Route path="monsters" element={<MonsterLibrary />} />
+            <Route path="spell-library" element={<SpellLibrary />} />
             <Route path="admin/classes" element={<RequireAdmin><Classes /></RequireAdmin>} />
             <Route path="admin/feats" element={<RequireAdmin><Feats /></RequireAdmin>} />
           </Route>

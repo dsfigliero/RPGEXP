@@ -17,6 +17,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/classes', require('./routes/classes'));
 app.use('/api/feats', require('./routes/feats'));
 app.use('/api/monsters', require('./routes/monsters'));
+app.use('/api/spell-library', require('./routes/spellLibrary'));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '..', 'public')));

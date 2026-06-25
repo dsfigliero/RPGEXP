@@ -147,7 +147,12 @@ export default function CharacterPanel() {
             <p className="text-muted text-sm">Jogador: {char.user_email}</p>
           )}
         </div>
-        {canEdit && <button className="btn-ghost" onClick={openEdit}>Editar Ficha</button>}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {char.class_info?.uses_magic === 1 && (
+            <Link to={`/characters/${id}/spells`} className="btn-ghost" style={{ textDecoration: 'none' }}>✨ Magias</Link>
+          )}
+          {canEdit && <button className="btn-ghost" onClick={openEdit}>Editar Ficha</button>}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px,1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
