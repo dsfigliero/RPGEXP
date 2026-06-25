@@ -2,7 +2,7 @@ const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = path.join(__dirname, '..', 'data', 'rpg.db');
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'rpg.db');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 let db;

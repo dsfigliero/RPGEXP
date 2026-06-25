@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { initDb, prepare } = require('./database');
 const { hashPassword } = require('./auth');
 
@@ -13,6 +14,13 @@ app.use('/api/evaluation-items', require('./routes/evaluationItems'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/users', require('./routes/users'));
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '..', 'public')));
+  app.get('*', (req, res) =>
+    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'))
+  );
+}
 
 const PORT = process.env.PORT || 3001;
 
