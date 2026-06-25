@@ -82,7 +82,7 @@ export default function AdminSessions() {
         )}
 
       {modal && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setModal(null)}>
+        <div className="modal-backdrop">
           <div className="modal">
             <div className="modal-header">
               <h2>Nova Sessão</h2>

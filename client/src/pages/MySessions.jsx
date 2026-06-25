@@ -43,7 +43,12 @@ export default function MySessions() {
                         {s.is_finalized ? 'Finalizada' : 'Em andamento'}
                       </span>
                     </td>
-                    <td><Link to={`/sessions/${s.id}`} style={{ fontSize: '0.85rem' }}>Ver detalhes →</Link></td>
+                    <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <Link to={`/sessions/${s.id}`} style={{ fontSize: '0.85rem' }}>Ver detalhes →</Link>
+                      {!s.is_finalized && (
+                        <Link to={`/sessions/${s.id}/live`} className="btn-ghost btn-sm">🔴 Ao Vivo</Link>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

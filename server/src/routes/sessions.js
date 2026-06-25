@@ -74,7 +74,8 @@ router.get('/:id', authenticate, (req, res) => {
   if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
 
   const participants = prepare(`
-    SELECT c.*, u.email as user_email FROM session_participants sp
+    SELECT c.id, c.name, c.class, c.level, c.hp, c.max_hp, c.ac, c.initiative, c.total_xp, u.email as user_email, u.id as user_id
+    FROM session_participants sp
     JOIN characters c ON c.id = sp.character_id
     JOIN users u ON u.id = c.user_id
     WHERE sp.session_id = ?
@@ -129,6 +130,39 @@ router.delete('/:id/participants/:characterId', authenticate, (req, res) => {
   if (!canManageSession(req.user, req.params.id))
     return res.status(403).json({ error: 'Acesso negado' });
   prepare('DELETE FROM session_participants WHERE session_id = ? AND character_id = ?').run(req.params.id, req.params.characterId);
+  res.json({ ok: true });
+});
+
+router.patch('/:id/participants/:charId/hp', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.charId);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  const { hp } = req.body;
+  if (hp === undefined) return res.status(400).json({ error: 'hp obrigatório' });
+  const oldHp = char.hp;
+  prepare('UPDATE characters SET hp = ? WHERE id = ?').run(hp, char.id);
+  if (oldHp !== hp) {
+    prepare(`
+      INSERT INTO character_change_log (character_id, changed_by, changed_by_email, old_values, new_values)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(char.id, req.user.id, req.user.email, JSON.stringify({ hp: oldHp }), JSON.stringify({ hp }));
+  }
+  res.json(prepare('SELECT * FROM characters WHERE id = ?').get(char.id));
+});
+
+router.post('/:id/participants/all', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const allChars = prepare(`SELECT c.id FROM characters c JOIN users u ON u.id = c.user_id`).all();
+  const existing = new Set(
+    prepare('SELECT character_id FROM session_participants WHERE session_id = ?').all(req.params.id).map(r => r.character_id)
+  );
+  for (const c of allChars) {
+    if (!existing.has(c.id)) {
+      prepare('INSERT OR IGNORE INTO session_participants (session_id, character_id) VALUES (?, ?)').run(req.params.id, c.id);
+    }
+  }
   res.json({ ok: true });
 });
 
@@ -188,6 +222,83 @@ router.post('/:id/finalize', authenticate, (req, res) => {
     console.error('Erro ao finalizar sessão:', err);
     res.status(500).json({ error: 'Erro ao finalizar sessão' });
   }
+});
+
+router.get('/:id/npcs', authenticate, (req, res) => {
+  res.json(prepare('SELECT * FROM npc_cards WHERE session_id = ? ORDER BY initiative DESC, created_at ASC').all(req.params.id));
+});
+
+router.post('/:id/npcs', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const { name, hp = 0, max_hp = 0, ac = 10, initiative = 0, notes = '', attacks = '[]', monster_data = null } = req.body;
+  if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+  const result = prepare('INSERT INTO npc_cards (session_id, name, hp, max_hp, ac, initiative, notes, attacks, monster_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(req.params.id, name, hp, max_hp, ac, initiative, notes, attacks, monster_data);
+  res.json(prepare('SELECT * FROM npc_cards WHERE id = ?').get(result.lastInsertRowid));
+});
+
+router.put('/:id/npcs/:npcId', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const npc = prepare('SELECT * FROM npc_cards WHERE id = ? AND session_id = ?').get(req.params.npcId, req.params.id);
+  if (!npc) return res.status(404).json({ error: 'NPC não encontrado' });
+  const { name, hp, max_hp, ac, initiative, notes, attacks, monster_data } = req.body;
+  prepare('UPDATE npc_cards SET name=?, hp=?, max_hp=?, ac=?, initiative=?, notes=?, attacks=?, monster_data=? WHERE id=?')
+    .run(name ?? npc.name, hp ?? npc.hp, max_hp ?? npc.max_hp, ac ?? npc.ac, initiative ?? npc.initiative, notes ?? npc.notes, attacks ?? npc.attacks ?? '[]', monster_data !== undefined ? monster_data : npc.monster_data, npc.id);
+  res.json(prepare('SELECT * FROM npc_cards WHERE id = ?').get(npc.id));
+});
+
+router.delete('/:id/npcs/:npcId', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  prepare('DELETE FROM npc_cards WHERE id = ? AND session_id = ?').run(req.params.npcId, req.params.id);
+  res.json({ ok: true });
+});
+
+router.patch('/:id/participants/:charId/initiative', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(req.params.charId);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  const { initiative } = req.body;
+  if (initiative === undefined) return res.status(400).json({ error: 'initiative obrigatório' });
+  prepare('UPDATE characters SET initiative = ? WHERE id = ?').run(initiative, char.id);
+  res.json({ ok: true });
+});
+
+router.post('/:id/combat/damage', authenticate, (req, res) => {
+  if (!canManageSession(req.user, req.params.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  const { character_id, damage, attacker_name = '', attack_name = '', roll_notation = '', roll_result = 0 } = req.body;
+  if (!character_id || damage === undefined) return res.status(400).json({ error: 'character_id e damage obrigatórios' });
+  const char = prepare('SELECT * FROM characters WHERE id = ?').get(character_id);
+  if (!char) return res.status(404).json({ error: 'Personagem não encontrado' });
+  const hp_before = char.hp;
+  const hp_after = Math.max(0, Math.min(char.max_hp || 99999, hp_before - damage));
+  prepare('UPDATE characters SET hp = ? WHERE id = ?').run(hp_after, char.id);
+  prepare(`INSERT INTO combat_log (session_id, target_character_id, target_name, attacker_name, attack_name, roll_notation, roll_result, damage_dealt, hp_before, hp_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(req.params.id, char.id, char.name, attacker_name, attack_name, roll_notation, roll_result, damage, hp_before, hp_after);
+  prepare(`INSERT INTO character_change_log (character_id, changed_by, changed_by_email, old_values, new_values) VALUES (?, ?, ?, ?, ?)`)
+    .run(char.id, req.user.id, req.user.email, JSON.stringify({ hp: hp_before }), JSON.stringify({ hp: hp_after }));
+  res.json({ ok: true, hp_before, hp_after, damage_dealt: damage });
+});
+
+router.get('/:id/combat/log', authenticate, (req, res) => {
+  res.json(prepare(`SELECT * FROM combat_log WHERE session_id = ? ORDER BY created_at DESC LIMIT 100`).all(req.params.id));
+});
+
+router.post('/:id/my-initiative', authenticate, (req, res) => {
+  const char = prepare(`
+    SELECT c.* FROM characters c
+    JOIN session_participants sp ON sp.character_id = c.id
+    WHERE sp.session_id = ? AND c.user_id = ?
+    LIMIT 1
+  `).get(req.params.id, req.user.id);
+  if (!char) return res.status(403).json({ error: 'Você não tem um personagem nesta sessão' });
+  const { initiative } = req.body;
+  if (initiative === undefined) return res.status(400).json({ error: 'initiative obrigatório' });
+  prepare('UPDATE characters SET initiative = ? WHERE id = ?').run(initiative, char.id);
+  res.json({ ok: true, initiative, character_id: char.id });
 });
 
 module.exports = router;

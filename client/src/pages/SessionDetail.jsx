@@ -65,6 +65,20 @@ export default function SessionDetail() {
         )}
       </div>
 
+      {session.is_finalized && myXP.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px,1fr))', gap: '1rem', marginTop: '1rem' }}>
+          {myXP.map(r => (
+            <div key={r.id} className="card" style={{ textAlign: 'center' }}>
+              <div className="text-muted text-sm">{r.character_name}</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--success)', margin: '0.5rem 0' }}>
+                +{r.xp_granted.toLocaleString('pt-BR')}
+              </div>
+              <div className="text-muted text-sm">XP recebido</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {myActions.length > 0 && (
         <div className="card mt-3">
           <strong className="mb-3" style={{ display: 'block' }}>Ações dos meus personagens</strong>
@@ -73,8 +87,9 @@ export default function SessionDetail() {
               <tr>
                 <th>Personagem</th>
                 <th>Ação</th>
+                <th>XP Unit.</th>
                 <th>Qtd</th>
-                <th>XP</th>
+                <th>Total</th>
               </tr>
             </thead>
             <tbody>
@@ -82,11 +97,18 @@ export default function SessionDetail() {
                 <tr key={i}>
                   <td>{a.character_name}</td>
                   <td>{a.item_name}</td>
+                  <td>{a.xp_value.toLocaleString('pt-BR')}</td>
                   <td>{a.quantity}</td>
-                  <td>{(a.xp_value * a.quantity).toLocaleString('pt-BR')}</td>
+                  <td className="font-bold">{(a.xp_value * a.quantity).toLocaleString('pt-BR')}</td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 600 }}>Total</td>
+                <td className="font-bold">{myActions.reduce((s, a) => s + a.xp_value * a.quantity, 0).toLocaleString('pt-BR')}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}

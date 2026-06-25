@@ -41,6 +41,7 @@ export default function Layout() {
             <NavLink to="/admin/campaigns" onClick={navClick}>🗺 Campanhas</NavLink>
             <NavLink to="/admin/evaluation-items" onClick={navClick}>⭐ Itens de Avaliação</NavLink>
             <NavLink to="/admin/users" onClick={navClick}>👥 Usuários</NavLink>
+            <NavLink to="/admin/character-logs" onClick={navClick}>📋 Log de Personagens</NavLink>
           </>}
         </nav>
         <div className="sidebar-footer">

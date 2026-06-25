@@ -84,7 +84,7 @@ export default function EvaluationItems() {
         )}
 
       {modal && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setModal(null)}>
+        <div className="modal-backdrop">
           <div className="modal">
             <div className="modal-header">
               <h2>{modal.id ? 'Editar' : 'Novo'} Item</h2>

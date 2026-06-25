@@ -94,7 +94,21 @@ router.get('/:id', authenticate, (req, res) => {
       `).all(req.params.id)
     : [];
 
-  res.json({ ...campaign, sessions, join_requests });
+  const xp_summary = (isAdmin || isMestreOfThis)
+    ? prepare(`
+        SELECT c.id, c.name as character_name, c.class, u.email as user_email,
+          SUM(xr.xp_granted) as total_xp_campaign
+        FROM xp_records xr
+        JOIN characters c ON c.id = xr.character_id
+        JOIN sessions s ON s.id = xr.session_id
+        JOIN users u ON u.id = c.user_id
+        WHERE s.campaign_id = ?
+        GROUP BY c.id
+        ORDER BY total_xp_campaign DESC
+      `).all(req.params.id)
+    : [];
+
+  res.json({ ...campaign, sessions, join_requests, xp_summary });
 });
 
 // POST / — any authenticated user creates campaign (becomes Mestre)
@@ -156,6 +170,24 @@ router.put('/:id/join-requests/:requestId', authenticate, (req, res) => {
   prepare('UPDATE campaign_join_requests SET status = ? WHERE id = ? AND campaign_id = ?')
     .run(status, req.params.requestId, req.params.id);
   res.json({ ok: true });
+});
+
+// GET /:id/characters — Mestre views all characters of participants in this campaign's sessions
+router.get('/:id/characters', authenticate, (req, res) => {
+  const campaign = prepare('SELECT * FROM campaigns WHERE id = ?').get(req.params.id);
+  if (!campaign) return res.status(404).json({ error: 'Campanha não encontrada' });
+  const isMestreOfThis = campaign.created_by === req.user.id;
+  if (!isMestreOfThis && !req.user.is_admin)
+    return res.status(403).json({ error: 'Acesso negado' });
+  res.json(prepare(`
+    SELECT DISTINCT c.*, u.email as user_email
+    FROM characters c
+    JOIN users u ON u.id = c.user_id
+    JOIN session_participants sp ON sp.character_id = c.id
+    JOIN sessions s ON s.id = sp.session_id
+    WHERE s.campaign_id = ?
+    ORDER BY u.email, c.name
+  `).all(req.params.id));
 });
 
 module.exports = router;

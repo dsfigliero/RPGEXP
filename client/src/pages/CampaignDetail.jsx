@@ -179,8 +179,36 @@ export default function CampaignDetail() {
         </div>
       )}
 
+      {campaign.xp_summary && campaign.xp_summary.length > 0 && (
+        <div style={{ marginTop: '2rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>XP da Campanha</h2>
+          <div className="card" style={{ padding: 0 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Personagem</th>
+                  <th>Classe</th>
+                  <th>Jogador</th>
+                  <th>XP Total na Campanha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaign.xp_summary.map(r => (
+                  <tr key={r.id}>
+                    <td>{r.character_name}</td>
+                    <td className="text-muted">{r.class || '—'}</td>
+                    <td className="text-muted">{r.user_email}</td>
+                    <td><span className="badge badge-purple">{r.total_xp_campaign.toLocaleString('pt-BR')} XP</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {modal && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setModal(null)}>
+        <div className="modal-backdrop">
           <div className="modal">
             <div className="modal-header">
               <h2>Nova Sessão</h2>
@@ -204,7 +232,7 @@ export default function CampaignDetail() {
       )}
 
       {editModal && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setEditModal(null)}>
+        <div className="modal-backdrop">
           <div className="modal">
             <div className="modal-header">
               <h2>Editar Campanha</h2>

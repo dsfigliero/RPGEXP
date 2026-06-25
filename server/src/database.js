@@ -58,6 +58,27 @@ async function initDb() {
       class TEXT DEFAULT '',
       level INTEGER DEFAULT 1,
       total_xp INTEGER DEFAULT 0,
+      hp INTEGER DEFAULT 0,
+      max_hp INTEGER DEFAULT 0,
+      ac INTEGER DEFAULT 10,
+      initiative INTEGER DEFAULT 0,
+      str_score INTEGER DEFAULT 10,
+      dex_score INTEGER DEFAULT 10,
+      con_score INTEGER DEFAULT 10,
+      int_score INTEGER DEFAULT 10,
+      wis_score INTEGER DEFAULT 10,
+      cha_score INTEGER DEFAULT 10,
+      race TEXT DEFAULT '',
+      alignment TEXT DEFAULT '',
+      speed INTEGER DEFAULT 30,
+      bab INTEGER DEFAULT 0,
+      cmb INTEGER DEFAULT 0,
+      cmd INTEGER DEFAULT 10,
+      spell_resistance INTEGER DEFAULT 0,
+      fortitude INTEGER DEFAULT 0,
+      will_save INTEGER DEFAULT 0,
+      reflex INTEGER DEFAULT 0,
+      char_notes TEXT DEFAULT '',
       user_id INTEGER NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
@@ -106,12 +127,84 @@ async function initDb() {
       FOREIGN KEY (session_id) REFERENCES sessions(id),
       FOREIGN KEY (character_id) REFERENCES characters(id)
     );
+
+    CREATE TABLE IF NOT EXISTS character_effects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      session_id INTEGER REFERENCES sessions(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      effect_type TEXT DEFAULT 'other',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS npc_cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      hp INTEGER DEFAULT 0,
+      max_hp INTEGER DEFAULT 0,
+      ac INTEGER DEFAULT 10,
+      initiative INTEGER DEFAULT 0,
+      notes TEXT DEFAULT '',
+      attacks TEXT DEFAULT '[]',
+      monster_data TEXT DEFAULT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS character_change_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      changed_by_email TEXT DEFAULT '',
+      old_values TEXT DEFAULT '{}',
+      new_values TEXT DEFAULT '{}',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS combat_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      target_character_id INTEGER REFERENCES characters(id) ON DELETE SET NULL,
+      target_name TEXT NOT NULL DEFAULT '',
+      attacker_name TEXT DEFAULT '',
+      attack_name TEXT DEFAULT '',
+      roll_notation TEXT DEFAULT '',
+      roll_result INTEGER DEFAULT 0,
+      damage_dealt INTEGER DEFAULT 0,
+      hp_before INTEGER DEFAULT 0,
+      hp_after INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   try { db.run(`ALTER TABLE characters ADD COLUMN class TEXT DEFAULT ''`); } catch(e) {}
   try { db.run(`ALTER TABLE sessions ADD COLUMN campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL`); } catch(e) {}
   try { db.run(`ALTER TABLE campaigns ADD COLUMN is_public INTEGER DEFAULT 0`); } catch(e) {}
   try { db.run(`ALTER TABLE campaigns ADD COLUMN created_by INTEGER REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN hp INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN max_hp INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN ac INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN initiative INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN str_score INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN dex_score INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN con_score INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN int_score INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN wis_score INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN cha_score INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN race TEXT DEFAULT ''`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN alignment TEXT DEFAULT ''`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN speed INTEGER DEFAULT 30`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN bab INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN cmb INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN cmd INTEGER DEFAULT 10`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN spell_resistance INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN fortitude INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN will_save INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN reflex INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN char_notes TEXT DEFAULT ''`); } catch(e) {}
+  try { db.run(`ALTER TABLE npc_cards ADD COLUMN attacks TEXT DEFAULT '[]'`); } catch(e) {}
+  try { db.run(`ALTER TABLE npc_cards ADD COLUMN monster_data TEXT DEFAULT NULL`); } catch(e) {}
 
   saveDb();
   return db;

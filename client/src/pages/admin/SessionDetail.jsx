@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../../api'
 
+
 export default function AdminSessionDetail() {
   const { id } = useParams()
   const [session, setSession] = useState(null)
@@ -28,6 +29,11 @@ export default function AdminSessionDetail() {
 
   async function addParticipant(characterId) {
     await api.post(`/sessions/${id}/participants`, { character_id: characterId })
+    load()
+  }
+
+  async function addAllParticipants() {
+    await api.post(`/sessions/${id}/participants/all`)
     load()
   }
 
@@ -91,6 +97,9 @@ export default function AdminSessionDetail() {
             {session.is_finalized ? 'Finalizada' : 'Em andamento'}
           </span>
           {!session.is_finalized && (
+            <Link to={`/dashboard/${id}`} className="btn-ghost btn-sm">🎲 Dashboard</Link>
+          )}
+          {!session.is_finalized && (
             <button className="btn-primary" onClick={finalize} disabled={finalizing}>
               {finalizing ? 'Finalizando...' : '⚡ Finalizar Sessão'}
             </button>
@@ -114,12 +123,15 @@ export default function AdminSessionDetail() {
             {session.participants.length === 0 && <span className="text-muted text-sm">Nenhum participante.</span>}
           </div>
           {!session.is_finalized && availableChars.length > 0 && (
-            <select onChange={e => { if (e.target.value) { addParticipant(e.target.value); e.target.value = '' } }} defaultValue="">
-              <option value="">+ Adicionar personagem...</option>
-              {availableChars.map(c => (
-                <option key={c.id} value={c.id}>{c.name} (Nv {c.level}) — {c.user_email}</option>
-              ))}
-            </select>
+            <div className="flex gap-2" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+              <select onChange={e => { if (e.target.value) { addParticipant(e.target.value); e.target.value = '' } }} defaultValue="">
+                <option value="">+ Adicionar personagem...</option>
+                {availableChars.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} (Nv {c.level}) — {c.user_email}</option>
+                ))}
+              </select>
+              <button className="btn-ghost btn-sm" onClick={addAllParticipants}>+ Adicionar Todos</button>
+            </div>
           )}
         </div>
 
