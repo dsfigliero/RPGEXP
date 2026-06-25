@@ -70,7 +70,7 @@ router.get('/admin/all-characters', authenticate, requireAdmin, (req, res) => {
 });
 
 router.get('/:id', authenticate, (req, res) => {
-  const session = prepare('SELECT s.*, cam.name as campaign_name FROM sessions s LEFT JOIN campaigns cam ON cam.id = s.campaign_id WHERE s.id = ?').get(req.params.id);
+  const session = prepare('SELECT s.*, cam.name as campaign_name, cam.created_by as campaign_created_by FROM sessions s LEFT JOIN campaigns cam ON cam.id = s.campaign_id WHERE s.id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
 
   const participants = prepare(`

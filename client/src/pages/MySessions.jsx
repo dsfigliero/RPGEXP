@@ -21,38 +21,27 @@ export default function MySessions() {
       {sessions.length === 0
         ? <div className="card text-muted text-sm">Você ainda não participou de nenhuma sessão.</div>
         : (
-          <div className="card" style={{ padding: 0 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Sessão</th>
-                  <th>Campanha</th>
-                  <th>Data</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map(s => (
-                  <tr key={s.id}>
-                    <td>{s.name}</td>
-                    <td className="text-muted">{s.campaign_name || '—'}</td>
-                    <td>{new Date(s.date).toLocaleDateString('pt-BR')}</td>
-                    <td>
-                      <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>
-                        {s.is_finalized ? 'Finalizada' : 'Em andamento'}
-                      </span>
-                    </td>
-                    <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <Link to={`/sessions/${s.id}`} style={{ fontSize: '0.85rem' }}>Ver detalhes →</Link>
-                      {!s.is_finalized && (
-                        <Link to={`/sessions/${s.id}/live`} className="btn-ghost btn-sm">🔴 Ao Vivo</Link>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {sessions.map(s => (
+              <div key={s.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{s.name}</div>
+                    {s.campaign_name && <div className="text-muted text-sm">{s.campaign_name}</div>}
+                    <div className="text-muted text-sm">{new Date(s.date).toLocaleDateString('pt-BR')}</div>
+                  </div>
+                  <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>
+                    {s.is_finalized ? 'Finalizada' : 'Em andamento'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <Link to={`/sessions/${s.id}`} className="btn-ghost btn-sm">Ver detalhes</Link>
+                  {!s.is_finalized && (
+                    <Link to={`/sessions/${s.id}/live`} className="btn-primary btn-sm">🔴 Ao Vivo</Link>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
     </div>

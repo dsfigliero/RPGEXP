@@ -36,9 +36,17 @@ export default function SessionDetail() {
           {session.campaign_name && <p className="text-muted text-sm mt-1">Campanha: {session.campaign_name}</p>}
           {session.description && <p className="text-muted text-sm mt-1">{session.description}</p>}
         </div>
-        <span className={`badge ${session.is_finalized ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: '0.9rem', padding: '0.35rem 0.9rem' }}>
-          {session.is_finalized ? 'Finalizada' : 'Em andamento'}
-        </span>
+        <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
+          <span className={`badge ${session.is_finalized ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: '0.9rem', padding: '0.35rem 0.9rem' }}>
+            {session.is_finalized ? 'Finalizada' : 'Em andamento'}
+          </span>
+          {!session.is_finalized && (user?.is_admin || user?.id === session.campaign_created_by) && (
+            <Link to={`/dashboard/${id}`} className="btn-ghost btn-sm">🎲 Dashboard</Link>
+          )}
+          {!session.is_finalized && (
+            <Link to={`/sessions/${id}/live`} className="btn-primary btn-sm">🔴 Ao Vivo</Link>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
