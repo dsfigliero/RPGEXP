@@ -107,38 +107,30 @@ export default function CampaignDetail() {
       {campaign.sessions.length === 0
         ? <div className="card text-muted text-sm">Nenhuma sessão nesta campanha ainda.</div>
         : (
-          <div className="card" style={{ padding: 0 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Sessão</th>
-                  <th>Data</th>
-                  {canManage && <th>Participantes</th>}
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaign.sessions.map(s => (
-                  <tr key={s.id}>
-                    <td>{s.name}</td>
-                    <td>{new Date(s.date).toLocaleDateString('pt-BR')}</td>
-                    {canManage && <td>{s.participant_count}</td>}
-                    <td>
-                      <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>
-                        {s.is_finalized ? 'Finalizada' : 'Em andamento'}
-                      </span>
-                    </td>
-                    <td>
-                      {canManage
-                        ? <Link to={`/admin/sessions/${s.id}`} className="btn-ghost btn-sm" style={{ display: 'inline-block' }}>Gerenciar →</Link>
-                        : <Link to={`/sessions/${s.id}`} style={{ fontSize: '0.85rem' }}>Ver detalhes →</Link>
-                      }
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            {campaign.sessions.map(s => (
+              <div key={s.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{s.name}</div>
+                  <div className="text-muted text-sm">
+                    {new Date(s.date).toLocaleDateString('pt-BR')}
+                    {canManage && s.participant_count > 0 && ` · ${s.participant_count} participantes`}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>
+                    {s.is_finalized ? 'Finalizada' : 'Em andamento'}
+                  </span>
+                  {canManage
+                    ? <Link to={`/admin/sessions/${s.id}`} className="btn-ghost btn-sm">Gerenciar →</Link>
+                    : <Link to={`/sessions/${s.id}`} className="btn-ghost btn-sm">Ver →</Link>
+                  }
+                  {!s.is_finalized && (
+                    <Link to={`/sessions/${s.id}/live`} className="btn-primary btn-sm">🔴 Ao Vivo</Link>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

@@ -19,8 +19,8 @@ export default function SessionLive() {
   const { user } = useAuth()
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [rolling, setRolling] = useState(false)
-  const [rollResult, setRollResult] = useState(null)
+  const [initInputs, setInitInputs] = useState({})
+  const [submitting, setSubmitting] = useState(false)
 
   async function load() {
     try {
@@ -37,17 +37,15 @@ export default function SessionLive() {
     return () => clearInterval(interval)
   }, [id])
 
-  async function rollInitiative(char) {
-    setRolling(true)
-    const d20 = Math.floor(Math.random() * 20) + 1
-    const modifier = char.initiative || 0
-    const total = d20 + modifier
-    setRollResult({ rolled: d20, modifier, total, charName: char.name })
+  async function submitInitiative(charId) {
+    const val = initInputs[charId]
+    if (val === undefined || val === '') return
+    setSubmitting(true)
     try {
-      await api.post(`/sessions/${id}/my-initiative`, { initiative: total })
+      await api.post(`/sessions/${id}/my-initiative`, { initiative: Number(val) })
       load()
     } finally {
-      setRolling(false)
+      setSubmitting(false)
     }
   }
 
@@ -109,21 +107,24 @@ export default function SessionLive() {
           </div>
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-            <p className="text-muted text-sm" style={{ marginBottom: '0.5rem' }}>
-              Modificador de Iniciativa: <strong>{char.initiative >= 0 ? '+' : ''}{char.initiative || 0}</strong>
-            </p>
-            <button
-              className="btn-primary"
-              onClick={() => rollInitiative(char)}
-              disabled={rolling}
-            >
-              🎲 Rolar Iniciativa (1d20 {char.initiative >= 0 ? '+' : ''}{char.initiative || 0})
-            </button>
-            {rollResult && rollResult.charName === char.name && (
-              <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
-                Rolou: <strong>{rollResult.rolled}</strong> + {rollResult.modifier} = <strong style={{ color: 'var(--primary)', fontSize: '1.1rem' }}>{rollResult.total}</strong>
-              </p>
-            )}
+            <p className="text-muted text-sm" style={{ marginBottom: '0.5rem' }}>Informe sua iniciativa</p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="number"
+                placeholder="Ex: 14"
+                value={initInputs[char.id] ?? ''}
+                onChange={e => setInitInputs(v => ({ ...v, [char.id]: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') submitInitiative(char.id) }}
+                style={{ width: 90, fontSize: '1rem', padding: '0.4rem 0.6rem' }}
+              />
+              <button
+                className="btn-primary"
+                onClick={() => submitInitiative(char.id)}
+                disabled={submitting || initInputs[char.id] === undefined || initInputs[char.id] === ''}
+              >
+                Confirmar
+              </button>
+            </div>
           </div>
         </div>
       ))}

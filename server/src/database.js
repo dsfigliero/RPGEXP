@@ -31,6 +31,7 @@ async function initDb() {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       is_admin INTEGER DEFAULT 0,
+      is_mestre INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -205,6 +206,24 @@ async function initDb() {
   try { db.run(`ALTER TABLE characters ADD COLUMN char_notes TEXT DEFAULT ''`); } catch(e) {}
   try { db.run(`ALTER TABLE npc_cards ADD COLUMN attacks TEXT DEFAULT '[]'`); } catch(e) {}
   try { db.run(`ALTER TABLE npc_cards ADD COLUMN monster_data TEXT DEFAULT NULL`); } catch(e) {}
+  try { db.run(`ALTER TABLE users ADD COLUMN is_mestre INTEGER DEFAULT 0`); } catch(e) {}
+
+  // Seed default users (only if they don't exist)
+  const { hashPassword } = require('./auth');
+  const seedUsers = [
+    { email: 'd@gmail.com',     is_admin: 0, is_mestre: 0 },
+    { email: 'v@gmail.com',     is_admin: 0, is_mestre: 0 },
+    { email: 'j@gmail.com',     is_admin: 0, is_mestre: 0 },
+    { email: 'diego@gmail.com', is_admin: 0, is_mestre: 0 },
+    { email: 'm@gmail.com',     is_admin: 0, is_mestre: 1 },
+  ];
+  for (const u of seedUsers) {
+    const exists = prepare('SELECT id FROM users WHERE email = ?').get(u.email);
+    if (!exists) {
+      const hash = hashPassword('1');
+      db.run('INSERT INTO users (email, password_hash, is_admin, is_mestre) VALUES (?, ?, ?, ?)', [u.email, hash, u.is_admin, u.is_mestre]);
+    }
+  }
 
   saveDb();
   return db;

@@ -13,7 +13,7 @@ router.post('/register', (req, res) => {
   if (existing) return res.status(400).json({ error: 'Email já cadastrado' });
   const hash = hashPassword(password);
   const result = prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)').run(email, hash);
-  const user = prepare('SELECT id, email, is_admin FROM users WHERE id = ?').get(result.lastInsertRowid);
+  const user = prepare('SELECT id, email, is_admin, is_mestre FROM users WHERE id = ?').get(result.lastInsertRowid);
   res.json({ token: generateToken(user), user });
 });
 

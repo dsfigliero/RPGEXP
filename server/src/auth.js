@@ -13,7 +13,7 @@ function verifyPassword(password, hash) {
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, is_admin: user.is_admin },
+    { id: user.id, email: user.email, is_admin: user.is_admin, is_mestre: user.is_mestre || 0 },
     SECRET,
     { expiresIn: '7d' }
   );
