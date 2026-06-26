@@ -17,4 +17,9 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authenticate, requireAdmin };
+function requireMestre(req, res, next) {
+  if (!req.user?.is_admin && !req.user?.is_mestre) return res.status(403).json({ error: 'Acesso negado' });
+  next();
+}
+
+module.exports = { authenticate, requireAdmin, requireMestre };

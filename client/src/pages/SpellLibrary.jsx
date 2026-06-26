@@ -52,9 +52,11 @@ export default function SpellLibrary() {
           <h1>Biblioteca de Magias</h1>
           <p className="text-muted text-sm">{spells.length} magias na biblioteca</p>
         </div>
-        <button className="btn-primary" onClick={() => { setShowImport(true); setImportResult(null); setImportJson('') }}>
-          + Importar / Adicionar
-        </button>
+        {(user?.is_mestre || user?.is_admin) && (
+          <button className="btn-primary" onClick={() => { setShowImport(true); setImportResult(null); setImportJson('') }}>
+            + Importar / Adicionar
+          </button>
+        )}
       </div>
 
       {/* Search and filters */}
@@ -82,7 +84,7 @@ export default function SpellLibrary() {
           <div key={spell.id} className="card" style={{ cursor: 'pointer' }} onClick={() => setSelectedSpell(spell)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
               <strong style={{ fontSize: '0.95rem' }}>{spell.display_name || spell.name}</strong>
-              {user?.is_admin && (
+              {(user?.is_mestre || user?.is_admin) && (
                 <button className="btn-ghost btn-sm" style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem' }}
                   onClick={e => { e.stopPropagation(); deleteSpell(spell.id) }}>✕</button>
               )}

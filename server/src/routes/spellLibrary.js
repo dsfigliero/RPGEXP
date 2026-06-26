@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { prepare } = require('../database')
-const { authenticate, requireAdmin } = require('../middleware')
+const { authenticate, requireAdmin, requireMestre } = require('../middleware')
 
 // Normalize a field that can be a string or {id, name} object
 function str(v) { return v ? (typeof v === 'object' ? v.name || '' : String(v)) : '' }
@@ -98,7 +98,7 @@ router.get('/:id', authenticate, (req, res) => {
 })
 
 // POST /import — batch import array of spells (must be before /:id)
-router.post('/import', authenticate, (req, res) => {
+router.post('/import', authenticate, requireMestre, (req, res) => {
   const arr = Array.isArray(req.body) ? req.body : [req.body]
   if (arr.length === 0) return res.status(400).json({ error: 'Array vazio' })
 
@@ -120,8 +120,8 @@ router.post('/import', authenticate, (req, res) => {
   res.json({ ok: true, inserted, skipped, errors })
 })
 
-// POST / — add single spell (any authenticated user)
-router.post('/', authenticate, (req, res) => {
+// POST / — add single spell (mestre/admin only)
+router.post('/', authenticate, requireMestre, (req, res) => {
   const d = req.body
   if (!d.name && !d.id && !d.displayName) return res.status(400).json({ error: 'name obrigatório' })
   const p = parseSpell(d)
@@ -132,8 +132,8 @@ router.post('/', authenticate, (req, res) => {
   res.json(prepare('SELECT * FROM spell_library WHERE id = ?').get(result.lastInsertRowid))
 })
 
-// DELETE /:id — admin only
-router.delete('/:id', authenticate, requireAdmin, (req, res) => {
+// DELETE /:id — mestre/admin only
+router.delete('/:id', authenticate, requireMestre, (req, res) => {
   prepare('DELETE FROM spell_library WHERE id = ?').run(req.params.id)
   res.json({ ok: true })
 })

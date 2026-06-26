@@ -3,6 +3,16 @@ import { useParams, Link } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../AuthContext'
 
+const CLASS_ALIASES = {
+  mago:       ['wizard', 'mago', 'wiz'],
+  feiticeiro: ['sorcerer', 'feiticeiro', 'sor'],
+  bardo:      ['bard', 'bardo', 'brd'],
+  clerigo:    ['cleric', 'clérigo', 'clr'],
+  druida:     ['druid', 'druida', 'drd'],
+  paladino:   ['paladin', 'paladino', 'pal'],
+  ranger:     ['ranger', 'guardião', 'rgr'],
+}
+
 const CIRCLE_NAMES = [
   'Truques (0)', '1º Círculo', '2º Círculo', '3º Círculo', '4º Círculo',
   '5º Círculo', '6º Círculo', '7º Círculo', '8º Círculo', '9º Círculo',
@@ -132,27 +142,33 @@ export default function CharacterSpells() {
     } finally { setLibraryLoading(false) }
   }
 
-  function detectCircle(spell) {
+  function getClassKey() {
     const className = char?.class_info?.name?.toLowerCase() || ''
-    const ALIASES = {
-      mago: ['wizard', 'mago', 'wiz'],
-      feiticeiro: ['sorcerer', 'feiticeiro', 'sor'],
-      bardo: ['bard', 'bardo', 'brd'],
-      clerigo: ['cleric', 'clérigo', 'clr'],
-      druida: ['druid', 'druida', 'drd'],
-      paladino: ['paladin', 'paladino', 'pal'],
-      ranger: ['ranger', 'guardião', 'rgr'],
+    for (const [key, aliases] of Object.entries(CLASS_ALIASES)) {
+      if (aliases.some(a => className.includes(a) || a.includes(className))) return key
     }
-    let classKey = className
-    for (const [key, aliases] of Object.entries(ALIASES)) {
-      if (aliases.some(a => className.includes(a) || a.includes(className))) { classKey = key; break }
-    }
+    return className
+  }
+
+  function detectCircle(spell) {
+    const classKey = getClassKey()
+    const className = char?.class_info?.name?.toLowerCase() || ''
+    const allAliases = CLASS_ALIASES[classKey] || [className]
     const match = spell.levels?.find(l => {
       const lc = (l.class || l.className || '').toLowerCase()
-      const allAliases = ALIASES[classKey] || [className]
       return allAliases.some(a => lc.includes(a) || a.includes(lc))
     })
     return match?.level ?? activeCircle
+  }
+
+  function matchesCharClass(spell) {
+    const classKey = getClassKey()
+    const className = char?.class_info?.name?.toLowerCase() || ''
+    const allAliases = CLASS_ALIASES[classKey] || [className]
+    return (spell.levels || []).some(l => {
+      const lc = (l.class || l.className || '').toLowerCase()
+      return allAliases.some(a => lc.includes(a) || a.includes(lc))
+    })
   }
 
   async function addFromLibrary(libSpell) {
@@ -580,29 +596,41 @@ export default function CharacterSpells() {
               style={{ marginBottom: '0.75rem' }}
             />
             {libraryLoading && <p className="text-muted text-sm">Buscando...</p>}
-            {libraryResults.length === 0 && librarySearch && !libraryLoading && (
-              <p className="text-muted text-sm">Nenhuma magia encontrada.</p>
-            )}
-            {libraryResults.map(spell => {
-              const circle = detectCircle(spell)
-              return (
-                <div key={spell.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0.6rem 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 500 }}>{spell.display_name || spell.name}</span>
-                      {spell.school && <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>{spell.school}</span>}
-                      <span className="badge badge-yellow" style={{ fontSize: '0.65rem' }}>Círculo {circle}</span>
+            {(() => {
+              const availableCircles = slots.length > 0 ? new Set(slots.filter(s => s.total_slots > 0).map(s => s.circle)) : null
+              const filtered = libraryResults.filter(spell => {
+                if (!matchesCharClass(spell)) return false
+                if (availableCircles) {
+                  const circle = detectCircle(spell)
+                  return availableCircles.has(circle)
+                }
+                return true
+              })
+              if (libraryResults.length === 0 && librarySearch && !libraryLoading)
+                return <p className="text-muted text-sm">Nenhuma magia encontrada.</p>
+              if (libraryResults.length > 0 && filtered.length === 0)
+                return <p className="text-muted text-sm">Nenhuma magia disponível para {char?.class_info?.name} nos círculos configurados.</p>
+              return filtered.map(spell => {
+                const circle = detectCircle(spell)
+                return (
+                  <div key={spell.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0.6rem 0', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 500 }}>{spell.display_name || spell.name}</span>
+                        {spell.school && <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>{spell.school}</span>}
+                        <span className="badge badge-yellow" style={{ fontSize: '0.65rem' }}>Círculo {circle}</span>
+                      </div>
+                      {spell.description_short && <p className="text-muted text-sm" style={{ fontSize: '0.78rem', margin: '0.1rem 0 0' }}>{spell.description_short.substring(0, 100)}{spell.description_short.length > 100 ? '…' : ''}</p>}
                     </div>
-                    {spell.description_short && <p className="text-muted text-sm" style={{ fontSize: '0.78rem', margin: '0.1rem 0 0' }}>{spell.description_short.substring(0, 100)}{spell.description_short.length > 100 ? '…' : ''}</p>}
+                    <button
+                      className="btn-primary btn-sm"
+                      style={{ marginLeft: '0.75rem', whiteSpace: 'nowrap' }}
+                      onClick={() => { addFromLibrary(spell); setShowLibrarySearch(false); setLibraryResults([]) }}
+                    >+ Adicionar</button>
                   </div>
-                  <button
-                    className="btn-primary btn-sm"
-                    style={{ marginLeft: '0.75rem', whiteSpace: 'nowrap' }}
-                    onClick={() => { addFromLibrary(spell); setShowLibrarySearch(false); setLibraryResults([]) }}
-                  >+ Adicionar</button>
-                </div>
-              )
-            })}
+                )
+              })
+            })()}
             <div className="modal-footer">
               <button className="btn-ghost" onClick={() => { setShowLibrarySearch(false); setLibraryResults([]) }}>Fechar</button>
             </div>
