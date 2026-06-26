@@ -132,13 +132,27 @@ export default function CharacterSpells() {
     setKnownSpells(prev => prev.filter(s => s.id !== spellId))
   }
 
-  async function searchLibrary(q) {
+  async function searchLibrary(q, circle) {
     setLibrarySearch(q)
-    if (!q.trim()) { setLibraryResults([]); return }
     setLibraryLoading(true)
     try {
-      const r = await api.get(`/spell-library?q=${encodeURIComponent(q)}`)
-      setLibraryResults(r.data)
+      const params = new URLSearchParams()
+      if (q) params.set('q', q)
+      const r = await api.get(`/spell-library?${params}`)
+      const classKey = getClassKey()
+      const className = char?.class_info?.name?.toLowerCase() || ''
+      const allAliases = CLASS_ALIASES[classKey] || [className]
+      let filtered = r.data.filter(spell => {
+        if (!spell.levels?.length) return false
+        return spell.levels.some(l => {
+          const lc = (l.class || l.className || '').toLowerCase()
+          return allAliases.some(a => lc.includes(a) || a.includes(lc))
+        })
+      })
+      if (circle !== undefined) {
+        filtered = filtered.filter(spell => detectCircle(spell) === circle)
+      }
+      setLibraryResults(filtered)
     } finally { setLibraryLoading(false) }
   }
 
@@ -224,17 +238,14 @@ export default function CharacterSpells() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <strong>{CIRCLE_NAMES[activeCircle]}</strong>
             {!locked && (
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                <button className="btn-ghost btn-sm" onClick={() => { setShowLibrarySearch(true); setLibrarySearch(''); setLibraryResults([]) }}>
-                  Biblioteca
-                </button>
-                <button className="btn-primary btn-sm" onClick={() => {
-                  setSpellModal({ circle: activeCircle, name: '', school: '', description: '', components: '', casting_time: '', duration: '', range: '', saving_throw: '', notes: '' })
-                  setError('')
-                }}>
-                  + Magia
-                </button>
-              </div>
+              <button className="btn-primary btn-sm" onClick={() => {
+                setShowLibrarySearch(true)
+                setLibrarySearch('')
+                setLibraryResults([])
+                searchLibrary('', activeCircle)
+              }}>
+                ＋ Adicionar Magia
+              </button>
             )}
           </div>
           {circleSpells.length === 0 && (
@@ -585,54 +596,50 @@ export default function CharacterSpells() {
         <div className="modal-backdrop">
           <div className="modal" style={{ maxWidth: 600, maxHeight: '85vh', overflowY: 'auto' }}>
             <div className="modal-header">
-              <h2>Buscar na Biblioteca</h2>
+              <h2>Adicionar Magia — {activeCircle === 0 ? 'Truques' : `${activeCircle}º Círculo`}</h2>
               <button className="btn-ghost btn-sm" onClick={() => { setShowLibrarySearch(false); setLibraryResults([]) }}>✕</button>
             </div>
             <input
               autoFocus
-              placeholder="Nome da magia..."
+              placeholder="Buscar na biblioteca..."
               value={librarySearch}
-              onChange={e => searchLibrary(e.target.value)}
+              onChange={e => searchLibrary(e.target.value, activeCircle)}
               style={{ marginBottom: '0.75rem' }}
             />
             {libraryLoading && <p className="text-muted text-sm">Buscando...</p>}
-            {(() => {
-              const availableCircles = slots.length > 0 ? new Set(slots.filter(s => s.total_slots > 0).map(s => s.circle)) : null
-              const filtered = libraryResults.filter(spell => {
-                if (!matchesCharClass(spell)) return false
-                if (availableCircles) {
-                  const circle = detectCircle(spell)
-                  return availableCircles.has(circle)
-                }
-                return true
-              })
-              if (libraryResults.length === 0 && librarySearch && !libraryLoading)
-                return <p className="text-muted text-sm">Nenhuma magia encontrada.</p>
-              if (libraryResults.length > 0 && filtered.length === 0)
-                return <p className="text-muted text-sm">Nenhuma magia disponível para {char?.class_info?.name} nos círculos configurados.</p>
-              return filtered.map(spell => {
-                const circle = detectCircle(spell)
-                return (
-                  <div key={spell.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0.6rem 0', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 500 }}>{spell.display_name || spell.name}</span>
-                        {spell.school && <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>{spell.school}</span>}
-                        <span className="badge badge-yellow" style={{ fontSize: '0.65rem' }}>Círculo {circle}</span>
-                      </div>
-                      {spell.description_short && <p className="text-muted text-sm" style={{ fontSize: '0.78rem', margin: '0.1rem 0 0' }}>{spell.description_short.substring(0, 100)}{spell.description_short.length > 100 ? '…' : ''}</p>}
+            {!libraryLoading && libraryResults.length === 0 && (
+              <p className="text-muted text-sm">Nenhuma magia encontrada para {char?.class_info?.name}{activeCircle > 0 ? ` no ${activeCircle}º círculo` : ' (truques)'}.</p>
+            )}
+            {libraryResults.map(spell => {
+              const circle = detectCircle(spell)
+              return (
+                <div key={spell.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0.6rem 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 500 }}>{spell.display_name || spell.name}</span>
+                      {spell.school && <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>{spell.school}</span>}
+                      <span className="badge badge-yellow" style={{ fontSize: '0.65rem' }}>Círculo {circle}</span>
                     </div>
-                    <button
-                      className="btn-primary btn-sm"
-                      style={{ marginLeft: '0.75rem', whiteSpace: 'nowrap' }}
-                      onClick={() => { addFromLibrary(spell); setShowLibrarySearch(false); setLibraryResults([]) }}
-                    >+ Adicionar</button>
+                    {spell.description_short && <p className="text-muted text-sm" style={{ fontSize: '0.78rem', margin: '0.1rem 0 0' }}>{spell.description_short.substring(0, 100)}{spell.description_short.length > 100 ? '…' : ''}</p>}
                   </div>
-                )
-              })
-            })()}
-            <div className="modal-footer">
-              <button className="btn-ghost" onClick={() => { setShowLibrarySearch(false); setLibraryResults([]) }}>Fechar</button>
+                  <button
+                    className="btn-primary btn-sm"
+                    style={{ marginLeft: '0.75rem', whiteSpace: 'nowrap' }}
+                    onClick={() => { addFromLibrary(spell); setShowLibrarySearch(false); setLibraryResults([]) }}
+                  >+ Adicionar</button>
+                </div>
+              )
+            })}
+            <div style={{ padding: '0.75rem 0', borderTop: '1px solid var(--border)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              Não encontrou?{' '}
+              <button className="btn-link" style={{ fontSize: '0.82rem' }}
+                onClick={() => {
+                  setShowLibrarySearch(false)
+                  setSpellModal({ name: '', circle: activeCircle, school: '', description: '', components: '', casting_time: '', duration: '', range: '', saving_throw: '', notes: '' })
+                  setError('')
+                }}>
+                Adicionar manualmente →
+              </button>
             </div>
           </div>
         </div>

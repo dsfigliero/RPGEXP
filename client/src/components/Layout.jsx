@@ -38,17 +38,24 @@ export default function Layout() {
           <NavLink to="/sessions" onClick={navClick}>📜 Minhas Sessões</NavLink>
           <NavLink to="/campaigns" onClick={navClick}>🗺 Campanhas</NavLink>
           <NavLink to="/monsters" onClick={navClick}>👹 Monstros</NavLink>
-          <NavLink to="/spell-library" onClick={navClick}>📚 Biblioteca de Magias</NavLink>
-          {user?.is_admin && <>
-            <div className="nav-section-label" style={{ marginTop: '1rem' }}>Admin</div>
-            <NavLink to="/admin/sessions" onClick={navClick}>🗂 Sessões</NavLink>
-            <NavLink to="/admin/campaigns" onClick={navClick}>🗺 Campanhas</NavLink>
-            <NavLink to="/admin/evaluation-items" onClick={navClick}>⭐ Itens de Avaliação</NavLink>
-            <NavLink to="/admin/users" onClick={navClick}>👥 Usuários</NavLink>
-            <NavLink to="/admin/character-logs" onClick={navClick}>📋 Log de Personagens</NavLink>
-            <NavLink to="/admin/classes" onClick={navClick}>🛡 Classes</NavLink>
-            <NavLink to="/admin/feats" onClick={navClick}>✨ Talentos</NavLink>
-          </>}
+          {(user?.is_mestre || user?.is_admin) && (
+            <>
+              <div className="nav-section-label" style={{ marginTop: '1rem' }}>Mestre</div>
+              <NavLink to="/spell-library" onClick={navClick}>📚 Biblioteca de Magias</NavLink>
+            </>
+          )}
+          {user?.is_admin && (
+            <>
+              <div className="nav-section-label" style={{ marginTop: '1rem' }}>Admin</div>
+              <NavLink to="/admin/sessions" onClick={navClick}>🗂 Sessões</NavLink>
+              <NavLink to="/admin/campaigns" onClick={navClick}>🗺 Campanhas</NavLink>
+              <NavLink to="/admin/evaluation-items" onClick={navClick}>⭐ Itens de Avaliação</NavLink>
+              <NavLink to="/admin/users" onClick={navClick}>👥 Usuários</NavLink>
+              <NavLink to="/admin/character-logs" onClick={navClick}>📋 Log de Personagens</NavLink>
+              <NavLink to="/admin/classes" onClick={navClick}>🛡 Classes</NavLink>
+              <NavLink to="/admin/feats" onClick={navClick}>✨ Talentos</NavLink>
+            </>
+          )}
         </nav>
         <div className="sidebar-footer">
           <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
