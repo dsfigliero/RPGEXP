@@ -77,10 +77,11 @@ function parseSpell(d) {
 
 // GET / — list all, with optional search
 router.get('/', authenticate, (req, res) => {
-  const { q, class: cls, level } = req.query
+  const { q, class: cls, level, school } = req.query
   let sql = 'SELECT id, name, display_name, school, subschool, levels, casting_time, components, range, duration, saving_throw, spell_resistance, description_short FROM spell_library WHERE 1=1'
   const params = []
   if (q) { sql += ' AND (name LIKE ? OR display_name LIKE ? OR description_short LIKE ?)'; params.push(`%${q}%`, `%${q}%`, `%${q}%`) }
+  if (school) { sql += ' AND school LIKE ?'; params.push(`%${school}%`) }
   sql += ' ORDER BY name'
   const spells = prepare(sql).all(...params)
   // Filter by class/level in JS (levels is JSON)
