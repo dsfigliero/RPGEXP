@@ -308,6 +308,12 @@ async function initDb() {
   try { db.run(`ALTER TABLE sessions ADD COLUMN spells_locked INTEGER DEFAULT 0`); } catch(e) {}
   try { db.run(`ALTER TABLE character_known_spells ADD COLUMN times_cast INTEGER DEFAULT 0`); } catch(e) {}
   try { db.run(`ALTER TABLE characters ADD COLUMN advancement_speed TEXT DEFAULT 'medium'`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_classes ADD COLUMN hit_die TEXT DEFAULT NULL`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_classes ADD COLUMN bab_progression TEXT DEFAULT NULL`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_classes ADD COLUMN skill_ranks_base INTEGER DEFAULT 2`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_classes ADD COLUMN source_book TEXT DEFAULT NULL`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_classes ADD COLUMN tags TEXT DEFAULT '[]'`); } catch(e) {}
+  try { db.run(`ALTER TABLE character_classes ADD COLUMN class_json TEXT DEFAULT NULL`); } catch(e) {}
 
   // Seed default users (only if they don't exist)
   const { hashPassword } = require('./auth');
