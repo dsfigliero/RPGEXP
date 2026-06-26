@@ -37,10 +37,10 @@ export default function Layout() {
           <NavLink to="/characters" onClick={navClick}>🧙 Personagens</NavLink>
           <NavLink to="/sessions" onClick={navClick}>📜 Minhas Sessões</NavLink>
           <NavLink to="/campaigns" onClick={navClick}>🗺 Campanhas</NavLink>
-          <NavLink to="/monsters" onClick={navClick}>👹 Monstros</NavLink>
           {(user?.is_mestre || user?.is_admin) && (
             <>
               <div className="nav-section-label" style={{ marginTop: '1rem' }}>Mestre</div>
+              <NavLink to="/monsters" onClick={navClick}>👹 Monstros</NavLink>
               <NavLink to="/spell-library" onClick={navClick}>📚 Biblioteca de Magias</NavLink>
             </>
           )}

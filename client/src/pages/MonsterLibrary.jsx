@@ -86,6 +86,7 @@ export default function MonsterLibrary() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [jsonImport, setJsonImport] = useState('')
+  const [importMode, setImportMode] = useState(true)
 
   async function load() {
     const { data } = await api.get('/monsters')
@@ -99,6 +100,7 @@ export default function MonsterLibrary() {
     setModal({ name: '', hp: 0, max_hp: 0, ac: 10, initiative: 0, notes: '', attacks: [], monster_data: '' })
     setJsonImport('')
     setError('')
+    setImportMode(true)
   }
 
   function openEdit(m) {
@@ -107,6 +109,7 @@ export default function MonsterLibrary() {
     setModal({ id: m.id, name: m.name, hp: m.hp, max_hp: m.max_hp, ac: m.ac, initiative: m.initiative, notes: m.notes || '', attacks, monster_data: m.monster_data || '' })
     setJsonImport('')
     setError('')
+    setImportMode(true)
   }
 
   function importJson() {
@@ -115,6 +118,7 @@ export default function MonsterLibrary() {
     setModal(m => ({ ...m, ...parsed, attacks: (() => { try { return JSON.parse(parsed.attacks) } catch(e) { return [] } })() }))
     setJsonImport('')
     setError('')
+    setImportMode(false)
   }
 
   async function save() {
@@ -178,42 +182,55 @@ export default function MonsterLibrary() {
               <button className="btn-ghost btn-sm" onClick={() => setModal(null)}>✕</button>
             </div>
 
-            {/* JSON Import */}
-            <div className="form-group">
-              <label>Importar JSON (Pathfinder 1e)</label>
-              <textarea rows={3} value={jsonImport} onChange={e => setJsonImport(e.target.value)} placeholder='Cole o JSON do monstro aqui...' style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: '0.8rem' }} />
-              <button className="btn-ghost btn-sm" style={{ marginTop: '0.3rem' }} onClick={importJson} disabled={!jsonImport.trim()}>Importar</button>
-            </div>
-
-            <hr style={{ margin: '0.75rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}><label>Nome</label><input value={modal.name} onChange={e => setModal(m => ({ ...m, name: e.target.value }))} autoFocus /></div>
-              <div className="form-group"><label>HP Máximo</label><input type="number" min={0} value={modal.max_hp} onChange={e => setModal(m => ({ ...m, max_hp: +e.target.value, hp: +e.target.value }))} /></div>
-              <div className="form-group"><label>CA</label><input type="number" min={0} value={modal.ac} onChange={e => setModal(m => ({ ...m, ac: +e.target.value }))} /></div>
-              <div className="form-group"><label>Iniciativa</label><input type="number" value={modal.initiative} onChange={e => setModal(m => ({ ...m, initiative: +e.target.value }))} /></div>
-            </div>
-
-            <div className="form-group"><label>Notas / CR / Tipo</label><textarea rows={2} value={modal.notes} onChange={e => setModal(m => ({ ...m, notes: e.target.value }))} style={{ resize: 'vertical' }} /></div>
-
-            {/* Attacks */}
-            <div className="form-group">
-              <label>Ataques</label>
-              {modal.attacks.map((atk, i) => (
-                <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                  <input placeholder="Nome" value={atk.name} onChange={e => setModal(m => { const a = [...m.attacks]; a[i] = { ...a[i], name: e.target.value }; return { ...m, attacks: a } })} style={{ flex: 2 }} />
-                  <input placeholder="Dano (ex: 1d6+3)" value={atk.damage} onChange={e => setModal(m => { const a = [...m.attacks]; a[i] = { ...a[i], damage: e.target.value }; return { ...m, attacks: a } })} style={{ flex: 2 }} />
-                  <button className="btn-danger btn-sm" onClick={() => setModal(m => ({ ...m, attacks: m.attacks.filter((_, j) => j !== i) }))}>✕</button>
+            {importMode ? (
+              <>
+                <div className="form-group">
+                  <label>Importar JSON (Pathfinder 1e)</label>
+                  <textarea rows={6} value={jsonImport} onChange={e => setJsonImport(e.target.value)} placeholder={`{\n  "name": "Goblin",\n  "defense": { "hp": { "total": 5 }, "ac": { "normal": 13 } },\n  "offense": { "initiative": { "total": 2 }, "melee": ["shortsword +2 (1d4)"] },\n  "cr": "1/3", "xp": 135,\n  "type": "Humanoide", "alignment": "Caótico e Mau", "size": "Pequeno"\n}`} style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: '0.8rem' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.3rem' }}>
+                    <button className="btn-primary btn-sm" onClick={importJson} disabled={!jsonImport.trim()}>Importar JSON</button>
+                    <button className="btn-ghost btn-sm" style={{ color: 'var(--text-muted)' }} onClick={() => setImportMode(false)}>Preencher manualmente →</button>
+                  </div>
                 </div>
-              ))}
-              <button className="btn-ghost btn-sm" onClick={() => setModal(m => ({ ...m, attacks: [...m.attacks, { name: '', damage: '' }] }))}>+ Ataque</button>
-            </div>
+                {error && <p className="error-msg">{error}</p>}
+                <div className="modal-footer">
+                  <button className="btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <button className="btn-ghost btn-sm" style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }} onClick={() => setImportMode(true)}>← Importar JSON</button>
+                </div>
 
-            {error && <p className="error-msg">{error}</p>}
-            <div className="modal-footer">
-              <button className="btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
-              <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
-            </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}><label>Nome</label><input value={modal.name} onChange={e => setModal(m => ({ ...m, name: e.target.value }))} autoFocus /></div>
+                  <div className="form-group"><label>HP Máximo</label><input type="number" min={0} value={modal.max_hp} onChange={e => setModal(m => ({ ...m, max_hp: +e.target.value, hp: +e.target.value }))} /></div>
+                  <div className="form-group"><label>CA</label><input type="number" min={0} value={modal.ac} onChange={e => setModal(m => ({ ...m, ac: +e.target.value }))} /></div>
+                  <div className="form-group"><label>Iniciativa</label><input type="number" value={modal.initiative} onChange={e => setModal(m => ({ ...m, initiative: +e.target.value }))} /></div>
+                </div>
+
+                <div className="form-group"><label>Notas / CR / Tipo</label><textarea rows={2} value={modal.notes} onChange={e => setModal(m => ({ ...m, notes: e.target.value }))} style={{ resize: 'vertical' }} /></div>
+
+                <div className="form-group">
+                  <label>Ataques</label>
+                  {modal.attacks.map((atk, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                      <input placeholder="Nome" value={atk.name} onChange={e => setModal(m => { const a = [...m.attacks]; a[i] = { ...a[i], name: e.target.value }; return { ...m, attacks: a } })} style={{ flex: 2 }} />
+                      <input placeholder="Dano (ex: 1d6+3)" value={atk.damage} onChange={e => setModal(m => { const a = [...m.attacks]; a[i] = { ...a[i], damage: e.target.value }; return { ...m, attacks: a } })} style={{ flex: 2 }} />
+                      <button className="btn-danger btn-sm" onClick={() => setModal(m => ({ ...m, attacks: m.attacks.filter((_, j) => j !== i) }))}>✕</button>
+                    </div>
+                  ))}
+                  <button className="btn-ghost btn-sm" onClick={() => setModal(m => ({ ...m, attacks: [...m.attacks, { name: '', damage: '' }] }))}>+ Ataque</button>
+                </div>
+
+                {error && <p className="error-msg">{error}</p>}
+                <div className="modal-footer">
+                  <button className="btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
+                  <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

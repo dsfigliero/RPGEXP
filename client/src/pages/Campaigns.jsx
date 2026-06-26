@@ -4,7 +4,7 @@ import api from '../api'
 import { useAuth } from '../AuthContext'
 
 export default function Campaigns() {
-  const { user } = useAuth()
+  const { user, login } = useAuth()
   const [campaigns, setCampaigns] = useState([])
   const [discover, setDiscover] = useState([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +33,8 @@ export default function Campaigns() {
     if (!modal.name.trim()) return setError('Nome obrigatório')
     setSaving(true)
     try {
-      await api.post('/campaigns', { name: modal.name, description: modal.description, is_public: modal.is_public })
+      const res = await api.post('/campaigns', { name: modal.name, description: modal.description, is_public: modal.is_public })
+      if (res.data.token) login(res.data.token, res.data.user)
       setModal(null)
       load()
     } catch (err) {
@@ -74,7 +75,7 @@ export default function Campaigns() {
               return (
                 <div key={c.id} className="card">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <span style={{ fontWeight: 600 }}>{c.name}</span>
+                    <Link to={to} style={{ fontWeight: 600, color: 'var(--text)', textDecoration: 'none' }}>{c.name}</Link>
                     {isAdmin && <span className="badge" style={{ background: 'var(--primary)', color: '#fff' }}>Admin</span>}
                     {!isAdmin && isMestre && <span className="badge badge-purple">Mestre</span>}
                     {!isAdmin && !isMestre && <span className="badge badge-green">Jogador</span>}
@@ -88,9 +89,6 @@ export default function Campaigns() {
                   {c.mestre_email && <p className="text-muted text-sm" style={{ marginBottom: '0.5rem' }}>Mestre: {c.mestre_email}</p>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <span className="badge badge-purple">{c.session_count} {c.session_count === 1 ? 'sessão' : 'sessões'}</span>
-                    <Link to={to} style={{ fontSize: '0.85rem', marginLeft: 'auto' }}>
-                      {(isAdmin || isMestre) ? 'Gerenciar →' : 'Ver →'}
-                    </Link>
                   </div>
                 </div>
               )

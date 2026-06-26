@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { prepare } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
+const { generateToken } = require('../auth');
 
 function isMestre(userId, campaignId) {
   const c = prepare('SELECT created_by FROM campaigns WHERE id = ?').get(campaignId);
@@ -118,7 +119,10 @@ router.post('/', authenticate, (req, res) => {
   const result = prepare(
     'INSERT INTO campaigns (name, description, is_public, created_by) VALUES (?, ?, ?, ?)'
   ).run(name, description, is_public ? 1 : 0, req.user.id);
-  res.json(prepare('SELECT * FROM campaigns WHERE id = ?').get(result.lastInsertRowid));
+  prepare('UPDATE users SET is_mestre = 1 WHERE id = ?').run(req.user.id);
+  const updatedUser = prepare('SELECT id, email, is_admin, is_mestre FROM users WHERE id = ?').get(req.user.id);
+  const newToken = generateToken(updatedUser);
+  res.json({ campaign: prepare('SELECT * FROM campaigns WHERE id = ?').get(result.lastInsertRowid), token: newToken, user: updatedUser });
 });
 
 // PUT /:id — admin or Mestre

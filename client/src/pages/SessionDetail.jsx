@@ -51,13 +51,32 @@ export default function SessionDetail() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
         <div className="card">
-          <strong className="mb-3" style={{ display: 'block' }}>Participantes</strong>
-          {session.participants.map(p => (
-            <div key={p.id} className="flex justify-between items-center mb-2">
-              <span>{p.name}</span>
-              <span className="badge badge-purple">Nível {p.level}</span>
-            </div>
-          ))}
+          <strong style={{ display: 'block', marginBottom: '0.75rem' }}>Participantes ({session.participants.length})</strong>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.5rem', marginTop: '0.5rem' }}>
+            {session.participants.map(p => {
+              const hpPct = p.max_hp > 0 ? Math.min(100, Math.max(0, (p.hp / p.max_hp) * 100)) : null
+              const hpColor = !hpPct ? 'var(--text-muted)' : hpPct > 50 ? 'var(--success)' : hpPct > 25 ? 'var(--warning)' : 'var(--danger)'
+              return (
+                <div key={p.id} style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', border: '1px solid var(--border)' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.2rem' }}>{p.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                    {p.class ? `${p.class} · ` : ''}Nível {p.level}
+                  </div>
+                  {p.max_hp > 0 && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                        <span>HP</span>
+                        <span style={{ color: hpColor, fontWeight: 600 }}>{p.hp}/{p.max_hp}</span>
+                      </div>
+                      <div style={{ background: 'var(--border)', borderRadius: 4, height: 4 }}>
+                        <div style={{ width: `${hpPct}%`, background: hpColor, borderRadius: 4, height: '100%', transition: 'width 0.3s' }} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {session.is_finalized && (

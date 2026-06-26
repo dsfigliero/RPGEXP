@@ -26,7 +26,7 @@ export default function MySessions() {
               <div key={s.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{s.name}</div>
+                    <Link to={`/sessions/${s.id}`} style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>{s.name}</Link>
                     {s.campaign_name && <div className="text-muted text-sm">{s.campaign_name}</div>}
                     <div className="text-muted text-sm">{new Date(s.date).toLocaleDateString('pt-BR')}</div>
                   </div>
@@ -34,12 +34,11 @@ export default function MySessions() {
                     {s.is_finalized ? 'Finalizada' : 'Em andamento'}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <Link to={`/sessions/${s.id}`} className="btn-ghost btn-sm">Ver detalhes</Link>
-                  {!s.is_finalized && (
+                {!s.is_finalized && (
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <Link to={`/sessions/${s.id}/live`} className="btn-primary btn-sm">🔴 Ao Vivo</Link>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -31,24 +31,11 @@ export default function Characters() {
     setError('')
   }
 
-  function openEdit(c) {
-    setModal({ id: c.id, name: c.name, class: c.class, class_id: c.class_id || null, level: c.level, race: c.race || '', alignment: c.alignment || '',
-      speed: c.speed || 30, hp: c.hp, max_hp: c.max_hp, ac: c.ac, initiative: c.initiative || 0,
-      str_score: c.str_score || 10, dex_score: c.dex_score || 10, con_score: c.con_score || 10,
-      int_score: c.int_score || 10, wis_score: c.wis_score || 10, cha_score: c.cha_score || 10,
-      bab: c.bab || 0, cmb: c.cmb || 0, cmd: c.cmd || 10, spell_resistance: c.spell_resistance || 0,
-      fortitude: c.fortitude || 0, will_save: c.will_save || 0, reflex: c.reflex || 0, char_notes: c.char_notes || '' })
-    setError('')
-  }
-
   async function save() {
     if (!modal.name.trim()) return setError('Nome obrigatório')
     setSaving(true)
     try {
-      if (modal.id)
-        await api.put(`/characters/${modal.id}`, modal)
-      else
-        await api.post('/characters', modal)
+      await api.post('/characters', modal)
       setModal(null)
       load()
     } catch (err) {
@@ -91,15 +78,13 @@ export default function Characters() {
               <tbody>
                 {characters.map(c => (
                   <tr key={c.id}>
-                    <td>{c.name}</td>
+                    <td><Link to={`/characters/${c.id}`} style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>{c.name}</Link></td>
                     <td className="text-muted">{c.class || '—'}</td>
                     <td><span className="badge badge-purple">Nível {c.level}</span></td>
                     <td>{c.total_xp.toLocaleString('pt-BR')} XP</td>
                     <td className="text-muted">{c.hp}/{c.max_hp}</td>
                     <td>
                       <div className="flex gap-2">
-                        <Link to={`/characters/${c.id}`} className="btn-ghost btn-sm">Painel</Link>
-                        <button className="btn-ghost btn-sm" onClick={() => openEdit(c)}>Editar</button>
                         <button className="btn-danger btn-sm" onClick={() => del(c.id)}>Excluir</button>
                       </div>
                     </td>
@@ -114,7 +99,7 @@ export default function Characters() {
         <div className="modal-backdrop">
           <div className="modal" style={{ maxWidth: 600, maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="modal-header">
-              <h2>{modal.id ? 'Editar' : 'Adicionar'} Personagem</h2>
+              <h2>Novo Personagem</h2>
               <button className="btn-ghost btn-sm" onClick={() => setModal(null)}>✕</button>
             </div>
 
