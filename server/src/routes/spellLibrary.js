@@ -4,7 +4,34 @@ const { prepare } = require('../database')
 const { authenticate, requireAdmin, requireMestre } = require('../middleware')
 
 // Normalize a field that can be a string or {id, name} object
-function str(v) { return v ? (typeof v === 'object' ? v.name || '' : String(v)) : '' }
+function str(v) { return v ? (typeof v === 'object' ? v.name || v.description || v.type || '' : String(v)) : '' }
+
+// Normalize castingTime: string | { value, unit }
+function strCastingTime(ct) {
+  if (!ct) return ''
+  if (typeof ct === 'string') return ct
+  const unitMap = { standardaction: '1 ação padrão', fullroundaction: '1 rodada completa', swiftaction: '1 ação rápida', immediateaction: '1 ação imediata', freeaction: 'livre', moveaction: '1 ação de movimento' }
+  const key = (ct.unit || '').toLowerCase().replace(/\s/g, '')
+  return unitMap[key] || `${ct.value ?? 1} ${ct.unit || ''}`.trim()
+}
+
+// Normalize duration: string | { type, value, unit, dismissible }
+function strDuration(d) {
+  if (!d) return ''
+  if (typeof d === 'string') return d
+  const typeMap = { perlevel: `${d.value ?? 1} ${(d.unit || 'min').toLowerCase()}/nível`, permanent: 'permanente', instantaneous: 'instantânea', concentration: 'concentração', untildischarged: 'até ser descarregada', special: 'especial' }
+  const key = (d.type || '').toLowerCase()
+  const base = typeMap[key] || `${d.value ?? ''} ${d.unit || d.type || ''}`.trim()
+  return d.dismissible ? `${base} (dispensável)` : base
+}
+
+// Normalize effect sub-fields: string | null | { type, description? }
+function strEffect(v) {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  if (typeof v === 'object') return v.description || v.name || v.type || ''
+  return ''
+}
 
 // Helper: parse a raw spell object from the JSON template into DB columns.
 // Handles two component formats:
@@ -59,13 +86,13 @@ function parseSpell(d) {
     subschool: str(d.subschool),
     descriptors: JSON.stringify(descriptors),
     levels: JSON.stringify(levels),
-    casting_time: d.casting?.castingTime || '',
+    casting_time: strCastingTime(d.casting?.castingTime),
     components: compStr,
-    range: d.effect?.range || '',
-    area: d.effect?.area || '',
-    effect: d.effect?.effect || '',
-    target: d.effect?.target || '',
-    duration: d.duration || '',
+    range: strEffect(d.effect?.range),
+    area: strEffect(d.effect?.area),
+    effect: strEffect(d.effect?.effect),
+    target: strEffect(d.effect?.target),
+    duration: strDuration(d.duration),
     saving_throw: stParts.join(', '),
     spell_resistance: srStr,
     description_short: d.description?.short || '',
@@ -103,22 +130,24 @@ router.post('/import', authenticate, requireMestre, (req, res) => {
   const arr = Array.isArray(req.body) ? req.body : [req.body]
   if (arr.length === 0) return res.status(400).json({ error: 'Array vazio' })
 
-  let inserted = 0, skipped = 0, errors = []
+  let inserted = 0, updated = 0, errors = []
   for (const d of arr) {
     try {
-      if (!d.name && !d.id && !d.displayName) { skipped++; continue }
+      if (!d.name && !d.id && !d.displayName) continue
       const p = parseSpell(d)
-      // Skip duplicates by name
       const existing = prepare('SELECT id FROM spell_library WHERE name = ?').get(p.name)
-      if (existing) { skipped++; continue }
-      prepare(`
-        INSERT INTO spell_library (name, display_name, school, subschool, descriptors, levels, casting_time, components, range, area, effect, target, duration, saving_throw, spell_resistance, description_short, description_full, source, raw_data, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(p.name, p.display_name, p.school, p.subschool, p.descriptors, p.levels, p.casting_time, p.components, p.range, p.area, p.effect, p.target, p.duration, p.saving_throw, p.spell_resistance, p.description_short, p.description_full, p.source, p.raw_data, req.user.id)
-      inserted++
-    } catch(e) { errors.push({ name: d.name || d.id, error: e.message }); skipped++ }
+      if (existing) {
+        prepare(`UPDATE spell_library SET display_name=?, school=?, subschool=?, descriptors=?, levels=?, casting_time=?, components=?, range=?, area=?, effect=?, target=?, duration=?, saving_throw=?, spell_resistance=?, description_short=?, description_full=?, source=?, raw_data=? WHERE id=?`)
+          .run(p.display_name, p.school, p.subschool, p.descriptors, p.levels, p.casting_time, p.components, p.range, p.area, p.effect, p.target, p.duration, p.saving_throw, p.spell_resistance, p.description_short, p.description_full, p.source, p.raw_data, existing.id)
+        updated++
+      } else {
+        prepare(`INSERT INTO spell_library (name, display_name, school, subschool, descriptors, levels, casting_time, components, range, area, effect, target, duration, saving_throw, spell_resistance, description_short, description_full, source, raw_data, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(p.name, p.display_name, p.school, p.subschool, p.descriptors, p.levels, p.casting_time, p.components, p.range, p.area, p.effect, p.target, p.duration, p.saving_throw, p.spell_resistance, p.description_short, p.description_full, p.source, p.raw_data, req.user.id)
+        inserted++
+      }
+    } catch(e) { errors.push({ name: d.name || d.id, error: e.message }) }
   }
-  res.json({ ok: true, inserted, skipped, errors })
+  res.json({ ok: true, inserted, updated, errors })
 })
 
 // POST / — add single spell (mestre/admin only)

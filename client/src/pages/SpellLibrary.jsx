@@ -167,7 +167,10 @@ export default function SpellLibrary() {
               <div style={{ marginTop: '0.75rem', padding: '0.6rem', borderRadius: 'var(--radius)', background: importResult.error ? 'rgba(224,84,84,0.1)' : 'rgba(76,175,125,0.1)', color: importResult.error ? 'var(--danger)' : 'var(--success)', fontSize: '0.85rem' }}>
                 {importResult.error
                   ? `Erro: ${importResult.error}`
-                  : `✓ ${importResult.inserted} importada${importResult.inserted !== 1 ? 's' : ''} · ${importResult.skipped} ignorada${importResult.skipped !== 1 ? 's' : ''} (duplicatas)`
+                  : [
+                      importResult.inserted > 0 && `✓ ${importResult.inserted} nova${importResult.inserted !== 1 ? 's' : ''}`,
+                      importResult.updated > 0 && `↺ ${importResult.updated} atualizada${importResult.updated !== 1 ? 's' : ''}`,
+                    ].filter(Boolean).join(' · ') || '0 alterações'
                 }
                 {importResult.errors?.length > 0 && (
                   <div style={{ marginTop: '0.25rem', fontSize: '0.78rem', opacity: 0.8 }}>
