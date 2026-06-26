@@ -81,7 +81,10 @@ export default function SpellLibrary() {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
         {spells.map(spell => (
-          <div key={spell.id} className="card" style={{ cursor: 'pointer' }} onClick={() => setSelectedSpell(spell)}>
+          <div key={spell.id} className="card" style={{ cursor: 'pointer' }} onClick={async () => {
+              const r = await api.get(`/spell-library/${spell.id}`)
+              setSelectedSpell(r.data)
+            }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
               <strong style={{ fontSize: '0.95rem' }}>{spell.display_name || spell.name}</strong>
               {(user?.is_mestre || user?.is_admin) && (
@@ -113,33 +116,68 @@ export default function SpellLibrary() {
       {/* Spell detail modal — closes on backdrop click */}
       {selectedSpell && (
         <div className="modal-backdrop" onClick={() => setSelectedSpell(null)}>
-          <div className="modal" style={{ maxWidth: 600, maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="modal" style={{ maxWidth: 640, maxHeight: '88vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{selectedSpell.display_name || selectedSpell.name}</h2>
+              <div>
+                <h2 style={{ marginBottom: '0.25rem' }}>{selectedSpell.display_name || selectedSpell.name}</h2>
+                {selectedSpell.description_short && (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>{selectedSpell.description_short}</p>
+                )}
+              </div>
               <button className="btn-ghost btn-sm" onClick={() => setSelectedSpell(null)}>✕</button>
             </div>
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-              {selectedSpell.school && <span className="badge badge-purple">{selectedSpell.school}</span>}
-              {selectedSpell.subschool && <span className="badge" style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>{selectedSpell.subschool}</span>}
+
+            {/* School + levels badges */}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', margin: '0.75rem 0' }}>
+              {selectedSpell.school && <span className="badge badge-purple">{selectedSpell.school}{selectedSpell.subschool ? ` (${selectedSpell.subschool})` : ''}</span>}
+              {(selectedSpell.descriptors || []).map(d => (
+                <span key={d} className="badge" style={{ background: 'var(--surface2)', color: 'var(--text-muted)', fontSize: '0.7rem' }}>{d}</span>
+              ))}
               {(selectedSpell.levels || []).map(l => (
-                <span key={`${l.class}-${l.level}`} className="badge badge-yellow">{l.class} Nv.{l.level}</span>
+                <span key={`${l.class}-${l.level}`} className="badge badge-yellow" style={{ fontSize: '0.72rem' }}>{l.class} {l.level}°</span>
               ))}
             </div>
-            <table style={{ width: '100%', marginBottom: '1rem' }}>
+
+            {/* Stats table */}
+            <table style={{ width: '100%', marginBottom: '1.25rem', borderCollapse: 'collapse' }}>
               <tbody>
-                {selectedSpell.casting_time && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem', whiteSpace: 'nowrap' }}>Tempo</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.casting_time}</td></tr>}
-                {selectedSpell.components && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem' }}>Componentes</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.components}</td></tr>}
-                {selectedSpell.range && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem' }}>Alcance</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.range}</td></tr>}
-                {selectedSpell.area && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem' }}>Area</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.area}</td></tr>}
-                {selectedSpell.target && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem' }}>Alvo</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.target}</td></tr>}
-                {selectedSpell.duration && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem' }}>Duração</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.duration}</td></tr>}
-                {selectedSpell.saving_throw && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem' }}>Resistência</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.saving_throw}</td></tr>}
-                {selectedSpell.spell_resistance && <tr><td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', paddingRight: '1rem' }}>RM</td><td style={{ fontSize: '0.88rem' }}>{selectedSpell.spell_resistance}</td></tr>}
+                {[
+                  ['Tempo de conjuração', selectedSpell.casting_time],
+                  ['Componentes', selectedSpell.components],
+                  ['Alcance', selectedSpell.range],
+                  ['Alvo', selectedSpell.target],
+                  ['Área', selectedSpell.area],
+                  ['Efeito', selectedSpell.effect],
+                  ['Duração', selectedSpell.duration],
+                  ['Teste de resistência', selectedSpell.saving_throw],
+                  ['Resistência a magia', selectedSpell.spell_resistance],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <tr key={label} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem', padding: '0.35rem 1rem 0.35rem 0', whiteSpace: 'nowrap', verticalAlign: 'top', width: '40%' }}>{label}</td>
+                    <td style={{ fontSize: '0.88rem', padding: '0.35rem 0', verticalAlign: 'top' }}>{value}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+
+            {/* Full description */}
             {selectedSpell.description_full && (
-              <div style={{ fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{selectedSpell.description_full}</div>
+              <div style={{ fontSize: '0.9rem', lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: '1rem' }}>
+                {selectedSpell.description_full}
+              </div>
             )}
+
+            {/* Source */}
+            {(() => {
+              try {
+                const src = typeof selectedSpell.source === 'string' ? JSON.parse(selectedSpell.source) : selectedSpell.source
+                if (src?.sourceBook) return (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', margin: 0 }}>
+                    Fonte: {src.sourceBook}{src.page ? `, p. ${src.page}` : ''}
+                  </p>
+                )
+              } catch { return null }
+            })()}
           </div>
         </div>
       )}
