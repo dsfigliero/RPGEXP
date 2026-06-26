@@ -61,18 +61,17 @@ export default function AdminSessions() {
               <tbody>
                 {sessions.map(s => (
                   <tr key={s.id}>
-                    <td>{s.name}</td>
+                    <td>
+                      <Link to={`/admin/sessions/${s.id}`} style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>
+                        {s.name}
+                      </Link>
+                    </td>
                     <td className="text-muted">{s.campaign_name || '—'}</td>
                     <td>{new Date(s.date).toLocaleDateString('pt-BR')}</td>
                     <td>
                       <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>
                         {s.is_finalized ? 'Finalizada' : 'Em andamento'}
                       </span>
-                    </td>
-                    <td>
-                      <Link to={`/admin/sessions/${s.id}`} className="btn-ghost btn-sm" style={{ display: 'inline-block' }}>
-                        Gerenciar →
-                      </Link>
                     </td>
                   </tr>
                 ))}

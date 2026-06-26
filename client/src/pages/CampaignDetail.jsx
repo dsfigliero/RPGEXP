@@ -110,8 +110,11 @@ export default function CampaignDetail() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             {campaign.sessions.map(s => (
               <div key={s.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{s.name}</div>
+                <div style={{ flex: 1 }}>
+                  <Link to={canManage ? `/admin/sessions/${s.id}` : `/sessions/${s.id}`}
+                    style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>
+                    {s.name}
+                  </Link>
                   <div className="text-muted text-sm">
                     {new Date(s.date).toLocaleDateString('pt-BR')}
                     {canManage && s.participant_count > 0 && ` · ${s.participant_count} participantes`}
@@ -121,10 +124,6 @@ export default function CampaignDetail() {
                   <span className={`badge ${s.is_finalized ? 'badge-green' : 'badge-yellow'}`}>
                     {s.is_finalized ? 'Finalizada' : 'Em andamento'}
                   </span>
-                  {canManage
-                    ? <Link to={`/admin/sessions/${s.id}`} className="btn-ghost btn-sm">Gerenciar →</Link>
-                    : <Link to={`/sessions/${s.id}`} className="btn-ghost btn-sm">Ver →</Link>
-                  }
                   {!s.is_finalized && (
                     <Link to={`/sessions/${s.id}/live`} className="btn-primary btn-sm">🔴 Ao Vivo</Link>
                   )}

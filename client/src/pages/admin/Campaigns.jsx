@@ -69,7 +69,11 @@ export default function AdminCampaigns() {
               <tbody>
                 {campaigns.map(c => (
                   <tr key={c.id}>
-                    <td>{c.name}</td>
+                    <td>
+                      <Link to={`/admin/campaigns/${c.id}`} style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>
+                        {c.name}
+                      </Link>
+                    </td>
                     <td className="text-muted">{c.description || '—'}</td>
                     <td>
                       {c.is_public
@@ -80,7 +84,6 @@ export default function AdminCampaigns() {
                     <td><span className="badge badge-purple">{c.session_count}</span></td>
                     <td>
                       <div className="flex gap-2">
-                        <Link to={`/admin/campaigns/${c.id}`} className="btn-ghost btn-sm" style={{ display: 'inline-block' }}>Gerenciar →</Link>
                         <button className="btn-ghost btn-sm" onClick={() => openEdit(c)}>Editar</button>
                         <button className="btn-danger btn-sm" onClick={() => del(c.id)}>Excluir</button>
                       </div>
