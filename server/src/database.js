@@ -307,6 +307,7 @@ async function initDb() {
   try { db.run(`ALTER TABLE character_classes ADD COLUMN casting_type TEXT DEFAULT 'prepared'`); } catch(e) {}
   try { db.run(`ALTER TABLE sessions ADD COLUMN spells_locked INTEGER DEFAULT 0`); } catch(e) {}
   try { db.run(`ALTER TABLE character_known_spells ADD COLUMN times_cast INTEGER DEFAULT 0`); } catch(e) {}
+  try { db.run(`ALTER TABLE characters ADD COLUMN advancement_speed TEXT DEFAULT 'medium'`); } catch(e) {}
 
   // Seed default users (only if they don't exist)
   const { hashPassword } = require('./auth');

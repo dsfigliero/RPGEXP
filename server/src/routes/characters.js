@@ -111,7 +111,7 @@ router.put('/:id', authenticate, (req, res) => {
     name, class: charClass, class_id, level, hp, max_hp, ac, initiative,
     str_score, dex_score, con_score, int_score, wis_score, cha_score,
     race, alignment, speed, bab, cmb, cmd, spell_resistance,
-    fortitude, will_save, reflex, char_notes
+    fortitude, will_save, reflex, char_notes, advancement_speed
   } = req.body;
 
   // Resolve class name from class_id if provided
@@ -148,19 +148,20 @@ router.put('/:id', authenticate, (req, res) => {
     will_save: will_save ?? char.will_save,
     reflex: reflex ?? char.reflex,
     char_notes: char_notes ?? char.char_notes,
+    advancement_speed: advancement_speed ?? char.advancement_speed ?? 'medium',
   };
 
   prepare(`
     UPDATE characters SET name=?, class=?, class_id=?, level=?, hp=?, max_hp=?, ac=?, initiative=?,
       str_score=?, dex_score=?, con_score=?, int_score=?, wis_score=?, cha_score=?,
       race=?, alignment=?, speed=?, bab=?, cmb=?, cmd=?, spell_resistance=?,
-      fortitude=?, will_save=?, reflex=?, char_notes=?
+      fortitude=?, will_save=?, reflex=?, char_notes=?, advancement_speed=?
     WHERE id=?
   `).run(
     updated.name, updated.class, updated.class_id, updated.level, updated.hp, updated.max_hp, updated.ac, updated.initiative,
     updated.str_score, updated.dex_score, updated.con_score, updated.int_score, updated.wis_score, updated.cha_score,
     updated.race, updated.alignment, updated.speed, updated.bab, updated.cmb, updated.cmd, updated.spell_resistance,
-    updated.fortitude, updated.will_save, updated.reflex, updated.char_notes, char.id
+    updated.fortitude, updated.will_save, updated.reflex, updated.char_notes, updated.advancement_speed, char.id
   );
 
   const { changed_old, changed_new, hasChanges } = buildLogEntry(char, updated);

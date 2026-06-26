@@ -45,8 +45,21 @@ const EMPTY_FORM = {
   hp: 0, max_hp: 0, ac: 10, initiative: 0,
   str_score: 10, dex_score: 10, con_score: 10, int_score: 10, wis_score: 10, cha_score: 10,
   bab: 0, cmb: 0, cmd: 10, spell_resistance: 0,
-  fortitude: 0, will_save: 0, reflex: 0, char_notes: ''
+  fortitude: 0, will_save: 0, reflex: 0, char_notes: '',
+  advancement_speed: 'medium',
 };
+
+// XP thresholds indexed by level (1-20); index 0 unused
+const XP_TABLE = {
+  slow:   [0, 0, 3000, 7500, 14000, 23000, 35000, 53000, 77000, 115000, 160000, 235000, 330000, 475000, 665000, 955000, 1350000, 1900000, 2700000, 3850000, 5350000],
+  medium: [0, 0, 2000, 5000, 9000, 15000, 23000, 35000, 51000, 75000, 105000, 155000, 220000, 315000, 445000, 635000, 890000, 1300000, 1800000, 2550000, 3600000],
+  fast:   [0, 0, 1300, 3300, 6000, 10000, 15000, 23000, 34000, 50000, 71000, 105000, 145000, 210000, 295000, 425000, 600000, 850000, 1200000, 1700000, 2400000],
+};
+const SPEED_LABELS = { slow: 'Lenta', medium: 'Média', fast: 'Rápida' };
+// Feats are gained at every odd level (1, 3, 5, ...) → total at level L = ceil(L/2)
+const totalFeatsAtLevel = lvl => Math.ceil(Math.min(lvl, 20) / 2);
+// Ability score increases at levels 4, 8, 12, 16, 20 → total = floor(L/4)
+const totalAbilityIncreasesAtLevel = lvl => Math.floor(Math.min(lvl, 20) / 4);
 
 const CLASS_ALIASES = {
   mago:       ['wizard', 'mago', 'wiz'],
@@ -572,6 +585,89 @@ export default function CharacterPanel() {
           )}
         </div>
       </div>
+
+      {/* ---- Advancement section ---- */}
+      {(() => {
+        const lvl = editMode ? (editForm.level || 1) : (char.level || 1)
+        const speed = editMode ? (editForm.advancement_speed || 'medium') : (char.advancement_speed || 'medium')
+        const xp = char.total_xp || 0
+        const thresholds = XP_TABLE[speed] || XP_TABLE.medium
+        const isMaxLevel = lvl >= 20
+        const xpForThisLevel = thresholds[lvl] ?? 0
+        const xpForNextLevel = isMaxLevel ? null : (thresholds[lvl + 1] ?? 0)
+        const progressPct = isMaxLevel
+          ? 100
+          : xpForNextLevel > xpForThisLevel
+            ? Math.min(100, Math.max(0, ((xp - xpForThisLevel) / (xpForNextLevel - xpForThisLevel)) * 100))
+            : 0
+        const xpToNext = isMaxLevel ? 0 : Math.max(0, xpForNextLevel - xp)
+        const readyToLevel = !isMaxLevel && xp >= xpForNextLevel
+        const earnedFeats = totalFeatsAtLevel(lvl)
+        const assignedFeats = feats.length
+        const pendingFeats = Math.max(0, earnedFeats - assignedFeats)
+        const earnedIncrements = totalAbilityIncreasesAtLevel(lvl)
+
+        return (
+          <>
+            <SectionTitle>Avanço de Personagem</SectionTitle>
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              {/* Speed selector */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span className="text-muted text-sm">Velocidade de avanço</span>
+                {editMode ? (
+                  <select value={editForm.advancement_speed || 'medium'} onChange={e => setEditForm(m => ({ ...m, advancement_speed: e.target.value }))} style={{ fontSize: '0.82rem', padding: '0.2rem 0.5rem' }}>
+                    <option value="slow">Lenta</option>
+                    <option value="medium">Média</option>
+                    <option value="fast">Rápida</option>
+                  </select>
+                ) : (
+                  <span className="badge badge-yellow" style={{ fontSize: '0.72rem' }}>{SPEED_LABELS[speed]}</span>
+                )}
+              </div>
+
+              {/* XP progress bar */}
+              <div style={{ marginBottom: '0.6rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                  <span>Nível {lvl}</span>
+                  {isMaxLevel ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>Nível máximo</span> : <span>Nível {lvl + 1}</span>}
+                </div>
+                <div style={{ background: 'var(--border)', borderRadius: 6, height: 10 }}>
+                  <div style={{ width: `${progressPct}%`, background: readyToLevel ? 'var(--success)' : 'var(--primary)', borderRadius: 6, height: '100%', transition: 'width 0.4s' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  <span className="text-muted">{xp.toLocaleString('pt-BR')} XP</span>
+                  {!isMaxLevel && (
+                    <span className="text-muted">
+                      {readyToLevel
+                        ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>Pronto para evoluir!</span>
+                        : `faltam ${xpToNext.toLocaleString('pt-BR')} XP`}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Feats and ability score increases */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem' }}>
+                  <div className="text-muted text-sm" style={{ marginBottom: '0.2rem' }}>Talentos conquistados</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{earnedFeats}</div>
+                  <div style={{ fontSize: '0.72rem', color: pendingFeats > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                    {assignedFeats} atribuído{assignedFeats !== 1 ? 's' : ''}
+                    {pendingFeats > 0 && <span style={{ color: 'var(--warning)', fontWeight: 600 }}> · {pendingFeats} pendente{pendingFeats !== 1 ? 's' : ''}</span>}
+                  </div>
+                </div>
+                <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem' }}>
+                  <div className="text-muted text-sm" style={{ marginBottom: '0.2rem' }}>Aum. de atributo</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{earnedIncrements}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    {earnedIncrements === 0 ? 'próximo no nível 4' : `nos níveis ${[4, 8, 12, 16, 20].filter(l => l <= lvl).join(', ')}`}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       <SectionTitle>Atributos</SectionTitle>
       {editMode ? (
